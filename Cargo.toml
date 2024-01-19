@@ -1,7 +1,14 @@
 [package]
 name = "genome-dereplication"
 version = "0.0.0"
+authors = ["Tommi Mäklin <tommi@maklin.fi>"]
 edition = "2021"
+rust-version = "1.75"
+description = "Pangenome-aware dereplication of bacterial genomes into ANI clusters"
+readme = "README.md"
+homepage = "https://github.com/tmaklin/panaani"
+repository = "https://github.com/tmaklin/panaani"
+license = "MPL-2.0"
 
 [dependencies]
 # core
