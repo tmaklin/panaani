@@ -2,7 +2,7 @@
 (WIP) Pangenome-aware dereplication of bacterial genomes into ANI clusters.
 
 ## Dependencies
-- Rust stable toolchain
+- Rust >= v1.75 (stable)
 
 ## Installation
 ```
