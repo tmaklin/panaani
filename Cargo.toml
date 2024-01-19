@@ -18,7 +18,3 @@ ggcat-api = { git = "https://github.com/algbio/ggcat", version="0.1.0" }
 
 # single linkage clustering
 kodama = "0.3.0"
-
-[patch.crates-io]
-## Required for building ggcat-api
-dynamic-dispatch-proc-macro = { git = "https://github.com/Guilucand/dynamic-dispatch-rs", version = "0.4.2" }
