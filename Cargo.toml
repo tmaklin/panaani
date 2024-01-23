@@ -25,3 +25,6 @@ ggcat-api = { git = "https://github.com/algbio/ggcat", version="0.1.0" }
 
 # single linkage clustering
 kodama = "0.3.0"
+
+# thread pools
+rayon = "1.8.1"

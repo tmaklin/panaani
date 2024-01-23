@@ -15,6 +15,12 @@ use skani::chain;
 use skani::file_io;
 use skani::params::*;
 use skani::regression;
+use skani::types::AniEstResult;
+
+use rayon;
+use rayon::iter::ParallelBridge;
+use rayon::iter::ParallelIterator;
+use std::sync::mpsc::channel;
 
 use ggcat_api::{
     GGCATConfig,
@@ -58,7 +64,7 @@ fn main() {
 
     // skani parameters
     let m = 1000;
-    let c = 125;
+    let c = 30;
     let k = 15;
     let sketch_params = SketchParams::new(m, c, k, false, false);
     let cmd_params = CommandParams {
@@ -93,19 +99,36 @@ fn main() {
 
 	// Run the full pipeline
 	Some(Commands::Dereplicate { seq_files }) => {
+	    rayon::ThreadPoolBuilder::new()
+		.num_threads(4)
+		.thread_name(|i| format!("rayon-thread-{}", i))
+		.build_global()
+		.unwrap();
+
 	    let sketches = file_io::fastx_to_sketches(seq_files, &sketch_params, true);
 	    let adjust_ani = regression::get_model(sketch_params.c, false);
-	    let mut ani_result: Vec<f32> = Vec::new();
 	    println!("Calculating ANIs...");
-	    for pair in sketches.iter().combinations(2) {
-		let map_params = chain::map_params_from_sketch(pair.first().unwrap(), false, &cmd_params, &adjust_ani);
-		ani_result.push(1.0 - chain::chain_seeds(pair.first().unwrap(), pair.last().unwrap(), map_params).ani);
-	    }
 
+	    let (sender, receiver) = channel();
+
+	    sketches.iter().combinations(2).par_bridge().for_each_with(sender, |s, pair| {
+		let map_params = chain::map_params_from_sketch(pair.first().unwrap(), false, &cmd_params, &adjust_ani);
+		let res = chain::chain_seeds(pair.first().unwrap(), pair.last().unwrap(), map_params);
+		println!("{}\t{}\t{}\t{}\t{}", pair.first().unwrap().file_name, pair.last().unwrap().file_name,
+			 res.ani, res.align_fraction_query, res.align_fraction_ref);
+		let mut ret = 1.0;
+		if res.ani > 0.0 && res.ani < 1.0 && !res.ani.is_nan() {
+		    ret = 1.0 - res.ani;
+		}
+		s.send(ret);
+	    });
+	    let mut ani_result: Vec<f32> = receiver.iter().collect();
+
+	    println!("{}", ani_result.len());
 	    let num_seqs = seq_files.len();
 	    let dend = linkage(&mut ani_result, num_seqs, Method::Single);
 
-	    let cutoff = 1.0 - 0.98;
+	    let cutoff = 1.0 - 0.95;
 	    let mut num_groups = 0;
 	    let num_nodes = 2 * num_seqs - 1;
 	    let mut membership = vec![None; num_nodes];
@@ -150,12 +173,14 @@ fn main() {
 		intermediate_compression_level: None,
 		stats_file: None,
 	    });
+	    i = 0;
 	    for group in seqs_by_group {
 		println!("Building graph {}...", i.to_string() + ".dbg");
 		let graph_file = PathBuf::from(i.to_string() + ".dbg");
 		let mut ggcat_inputs: Vec<ggcat_api::GeneralSequenceBlockData> = Vec::new();
 		for seq in group {
 		    let file = &seq_files[seq];
+		    println!("{}\t{}", file, i);
 		    ggcat_inputs.push(ggcat_api::GeneralSequenceBlockData::FASTA((
 			PathBuf::from(file),
 			None,
@@ -181,10 +206,10 @@ fn main() {
 	Some(Commands::Dist { seq_files }) => {
 	    let sketches = file_io::fastx_to_sketches(seq_files, &sketch_params, true);
 	    let adjust_ani = regression::get_model(sketch_params.c, false);
+	    let mut ani_result: Vec<f32> = Vec::new();
 	    for pair in sketches.iter().combinations(2) {
 		let map_params = chain::map_params_from_sketch(pair.first().unwrap(), false, &cmd_params, &adjust_ani);
-		let ani_result = chain::chain_seeds(pair.first().unwrap(), pair.last().unwrap(), map_params);
-		println!("{}", ani_result.ani);
+		ani_result.push(1.0 - chain::chain_seeds(pair.first().unwrap(), pair.last().unwrap(), map_params).ani);
 	    }
 	}
 
