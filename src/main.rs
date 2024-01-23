@@ -6,29 +6,12 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 //
-use clap::{Parser, Subcommand};
-use itertools::Itertools;
-
-use kodama::{Method, linkage};
-
-use skani::chain;
-use skani::file_io;
-use skani::params::*;
-use skani::regression;
-use skani::types::AniEstResult;
-
-use rayon;
-use rayon::iter::ParallelBridge;
-use rayon::iter::ParallelIterator;
-use std::sync::mpsc::channel;
-
-use ggcat_api::{
-    GGCATConfig,
-    GGCATInstance,
-    ExtraElaboration,
-};
-
 use std::path::PathBuf;
+use std::collections::HashSet;
+
+use clap::{Parser, Subcommand};
+
+use ggcat_api::{GGCATConfig,GGCATInstance};
 
 #[derive(Parser)]
 #[command(version)]
@@ -60,37 +43,6 @@ enum Commands {
 
 fn main() {
     println!("panaani: Pangenome-aware dereplication of bacterial genomes into ANI clusters");
-
-    // skani parameters
-    let m = 1000;
-    let c = 30;
-    let k = 15;
-    let sketch_params = SketchParams::new(m, c, k, false, false);
-    let cmd_params = CommandParams {
-        screen: false,
-        screen_val: 0.00,
-        mode: Mode::Dist,
-        out_file_name: "".to_string(),
-        ref_files: vec![],
-        query_files: vec![],
-        refs_are_sketch: false,
-        queries_are_sketch: false,
-        robust: false,
-        median: false,
-        sparse: false,
-        full_matrix: false,
-        max_results: 10000000,
-        individual_contig_q: false,
-        individual_contig_r: false,
-        min_aligned_frac: 0.15,
-        keep_refs: false,
-        est_ci: false,
-        learned_ani: true,
-        detailed_out: false,
-	rescue_small: false,
-	distance: true,
-    };
-
     let cli = Cli::parse();
 
     // Subcommands:
@@ -103,63 +55,6 @@ fn main() {
 		.thread_name(|i| format!("rayon-thread-{}", i))
 		.build_global()
 		.unwrap();
-
-	    println!("Calculating ANIs...");
-
-	    let (sender, receiver) = channel();
-
-	    seq_files.iter().cloned().combinations(2).par_bridge().for_each_with(sender, |s, pair| {
-		let sketches = file_io::fastx_to_sketches(&pair, &sketch_params, true);
-		let adjust_ani = regression::get_model(sketch_params.c, false);
-		let map_params = chain::map_params_from_sketch(sketches.first().unwrap(), false, &cmd_params, &adjust_ani);
-		let res = chain::chain_seeds(sketches.first().unwrap(), sketches.last().unwrap(), map_params);
-		let _ = s.send(res);
-	    });
-	    let mut ani_result: Vec<AniEstResult> = receiver.iter().collect();
-
-	    // Ensure output order is same regardless of parallelization
-	    ani_result.sort_by_key(|k| (k.ref_file.clone(), k.query_file.clone()));
-
-	    let mut ani: Vec<f32> = ani_result.into_iter().map(|x| if x.ani > 0.0 && x.ani < 1.0 && !x.ani.is_nan() { 1.0 - x.ani } else { 1.0 }).collect();
-	    let num_seqs = seq_files.len();
-	    let dend = linkage(&mut ani, num_seqs, Method::Single);
-
-	    let cutoff = 1.0 - 0.95;
-	    let mut num_groups = 0;
-	    let num_nodes = 2 * num_seqs - 1;
-	    let mut membership = vec![None; num_nodes];
-
-	    println!("Building dendrogram...");
-	    for (cluster_index, step) in dend.steps().iter().enumerate().rev() {
-		let cluster = cluster_index + num_seqs;
-		if step.dissimilarity <= cutoff {
-		    if membership[cluster].is_none() {
-			membership[cluster] = Some(num_groups);
-			num_groups += 1;
-		    }
-
-		    membership[step.cluster1] = membership[cluster];
-		    membership[step.cluster2] = membership[cluster];
-		}
-	    }
-
-	    println!("Clustering...");
-	    let mut groups = Vec::with_capacity(num_seqs);
-	    for group in membership.into_iter().take(num_seqs) {
-		if let Some(group) = group {
-		    groups.push(group);
-		} else {
-		    groups.push(num_groups);
-		    num_groups += 1;
-		}
-	    }
-
-	    let mut seqs_by_group = vec![Vec::new(); num_groups];
-	    for (seq_index, group) in groups.iter().enumerate() {
-		seqs_by_group[*group].push(seq_index);
-	    }
-
-	    println!("Building pangenome graphs...");
 	    let instance = GGCATInstance::create(GGCATConfig {
 		temp_dir: Some(PathBuf::from("/tmp")),
 		memory: 2.0,
@@ -168,64 +63,71 @@ fn main() {
 		intermediate_compression_level: None,
 		stats_file: None,
 	    });
-	    let mut i = 0;
-	    for group in seqs_by_group {
-		println!("Building graph {}...", i.to_string() + ".dbg");
-		let graph_file = PathBuf::from(i.to_string() + ".dbg");
-		let mut ggcat_inputs: Vec<ggcat_api::GeneralSequenceBlockData> = Vec::new();
-		for seq in group {
-		    let file = &seq_files[seq];
-		    println!("{}\t{}", file, i);
-		    ggcat_inputs.push(ggcat_api::GeneralSequenceBlockData::FASTA((
-			PathBuf::from(file),
-			None,
-		    )));
-		}
-		instance.build_graph(
-		    ggcat_inputs,
-		    graph_file,
-		    Some(&seq_files),
-		    31,
-		    4,
-		    false,
-		    None,
-		    true,
-		    1,
-		    ExtraElaboration::UnitigLinks,
-		);
-		i = i + 1;
-	    }
+
+	    println!("Calculating ANIs...");
+	    let ani_result = panaani::ani_from_fastx_files(seq_files);
+
+	    println!("Building dendrogram...");
+	    let seqs_by_group = panaani::single_linkage_cluster(&ani_result, seq_files.len());
+
+	    println!("Building pangenome graphs...");
+	    panaani::build_pangenome_representations(&seq_files, &seqs_by_group, &"./".to_string(), instance);
 	}
 
 	// Calculate distances between some input fasta files
 	Some(Commands::Dist { seq_files }) => {
-	    let sketches = file_io::fastx_to_sketches(seq_files, &sketch_params, true);
-	    let adjust_ani = regression::get_model(sketch_params.c, false);
-	    let mut ani_result: Vec<f32> = Vec::new();
-	    for pair in sketches.iter().combinations(2) {
-		let map_params = chain::map_params_from_sketch(pair.first().unwrap(), false, &cmd_params, &adjust_ani);
-		ani_result.push(1.0 - chain::chain_seeds(pair.first().unwrap(), pair.last().unwrap(), map_params).ani);
+	    let results = panaani::ani_from_fastx_files(seq_files);
+	    for res in results {
+		println!("{}\t{}\t{}\t{}\t{}",
+			 res.ref_file,
+			 res.query_file,
+			 res.ani,
+			 res.align_fraction_ref,
+			 res.align_fraction_query
+			 );
 	    }
 	}
 
 	// Build a de Bruijn graph from some input fasta files
-	Some(Commands::Build { seq_files,  }) => {
-	    let graph_file = PathBuf::from("/tmp/dbg.fa");
+	Some(Commands::Build { seq_files  }) => {
+	    let ggcat_inputs = panaani::open_ggcat_inputs(seq_files);
 	    let instance = GGCATInstance::create(GGCATConfig {
-		temp_dir: Some(PathBuf::from("/tmp")),
+		temp_dir: Some(PathBuf::from("./")),
 		memory: 2.0,
 		prefer_memory: true,
 		total_threads_count: 4,
 		intermediate_compression_level: None,
 		stats_file: None,
 	    });
+
+	    panaani::build_pangenome_graph(ggcat_inputs, seq_files, &"out".to_string(), instance);
 	}
 
-	// Cluster a distance matrix
+	// Cluster distance data created with `skani dist` or `panaani dist`.
 	Some(Commands::Cluster { dist_file,  }) => {
-	    let mut distances = vec![0.99, 0.94, 0.5];
-	    let n_obs = 3;
-	    let dend = linkage(&mut distances, n_obs, Method::Single);
+            let f = std::fs::File::open(dist_file).unwrap();
+	    let mut reader = csv::ReaderBuilder::new()
+		.delimiter(b'\t')
+		.has_headers(false)
+		.from_reader(f);
+
+	    let mut seq_names: HashSet<String> = HashSet::new();
+	    let mut res: Vec<(String, String, f32, f32, f32)> = Vec::new();
+	    for line in reader.records().into_iter() {
+		let record = line.unwrap();
+		res.push((
+		    record[0].to_string().clone(),
+		    record[1].to_string().clone(),
+		    record[2].parse().unwrap(),
+		    record[3].parse().unwrap(),
+		    record[4].parse().unwrap()
+		));
+		seq_names.insert(record[0].to_string());
+		seq_names.insert(record[0].to_string());
+	    }
+	    res.sort_by_key(|k| (k.0.clone(), k.1.clone()));
+
+	    panaani::single_linkage_cluster2(&res, seq_names.len());
 	}
 	None => {}
     }
