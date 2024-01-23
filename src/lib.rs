@@ -114,7 +114,7 @@ pub fn single_linkage_cluster2(ani_result: &Vec<(String, String, f32, f32, f32)>
 pub fn build_pangenome_graph(inputs: Vec<ggcat_api::GeneralSequenceBlockData>,
 			     input_seq_names: &Vec<String>,
 			     prefix: &String, instance: &ggcat_api::GGCATInstance) {
-    let graph_file = PathBuf::from(prefix.to_owned() + ".dbg");
+    let graph_file = PathBuf::from(prefix.to_owned() + ".dbg.fasta");
     instance.build_graph(
 	inputs,
 	graph_file,
@@ -144,7 +144,7 @@ pub fn build_pangenome_representations(seq_files: &Vec<String>, seq_clusters: &V
 				       out_prefix: &String, instance: &ggcat_api::GGCATInstance) {
     let mut i = 0;
     for group in seq_clusters {
-	println!("Building graph {}...", i.to_string() + ".dbg");
+	println!("Building graph {}...", i.to_string() + ".dbg.fasta");
 	let prefix = out_prefix.to_owned() + &i.to_string();
 
 	let mut ggcat_input_names: Vec<String> = Vec::new();
