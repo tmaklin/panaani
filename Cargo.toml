@@ -1,5 +1,5 @@
 [package]
-name = "genome-dereplication"
+name = "panaani"
 version = "0.0.0"
 authors = ["Tommi Mäklin <tommi@maklin.fi>"]
 edition = "2021"
