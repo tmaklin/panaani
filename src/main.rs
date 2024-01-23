@@ -19,8 +19,10 @@ use skani::regression;
 use ggcat_api::{
     GGCATConfig,
     GGCATInstance,
+    ExtraElaboration,
 };
 
+use ggcat_api::GeneralSequenceBlockData::FASTA;
 use std::path::PathBuf;
 
 #[derive(Parser)]
@@ -91,7 +93,88 @@ fn main() {
 
 	// Run the full pipeline
 	Some(Commands::Dereplicate { seq_files }) => {
-	    // TODO implement
+	    let sketches = file_io::fastx_to_sketches(seq_files, &sketch_params, true);
+	    let adjust_ani = regression::get_model(sketch_params.c, false);
+	    let mut ani_result: Vec<f32> = Vec::new();
+	    println!("Calculating ANIs...");
+	    for pair in sketches.iter().combinations(2) {
+		let map_params = chain::map_params_from_sketch(pair.first().unwrap(), false, &cmd_params, &adjust_ani);
+		ani_result.push(1.0 - chain::chain_seeds(pair.first().unwrap(), pair.last().unwrap(), map_params).ani);
+	    }
+
+	    let num_seqs = seq_files.len();
+	    let dend = linkage(&mut ani_result, num_seqs, Method::Single);
+
+	    let cutoff = 1.0 - 0.98;
+	    let mut num_groups = 0;
+	    let num_nodes = 2 * num_seqs - 1;
+	    let mut membership = vec![None; num_nodes];
+
+	    println!("Building dendrogram...");
+	    for (cluster_index, step) in dend.steps().iter().enumerate().rev() {
+		let cluster = cluster_index + num_seqs;
+		if step.dissimilarity <= cutoff {
+		    if membership[cluster].is_none() {
+			membership[cluster] = Some(num_groups);
+			num_groups += 1;
+		    }
+
+		    membership[step.cluster1] = membership[cluster];
+		    membership[step.cluster2] = membership[cluster];
+		}
+	    }
+
+	    println!("Clustering...");
+	    let mut groups = Vec::with_capacity(num_seqs);
+	    for group in membership.into_iter().take(num_seqs) {
+		if let Some(group) = group {
+		    groups.push(group);
+		} else {
+		    groups.push(num_groups);
+		    num_groups += 1;
+		}
+	    }
+
+	    let mut seqs_by_group = vec![Vec::new(); num_groups];
+	    for (seq_index, group) in groups.iter().enumerate() {
+		seqs_by_group[*group].push(seq_index);
+	    }
+
+	    let mut i = 0;
+	    println!("Building pangenome graphs...");
+	    let instance = GGCATInstance::create(GGCATConfig {
+		temp_dir: Some(PathBuf::from("/tmp")),
+		memory: 2.0,
+		prefer_memory: true,
+		total_threads_count: 1,
+		intermediate_compression_level: None,
+		stats_file: None,
+	    });
+	    for group in seqs_by_group {
+		println!("Building graph {}...", i.to_string() + ".dbg");
+		let graph_file = PathBuf::from(i.to_string() + ".dbg");
+		let mut ggcat_inputs: Vec<ggcat_api::GeneralSequenceBlockData> = Vec::new();
+		for seq in group {
+		    let file = &seq_files[seq];
+		    ggcat_inputs.push(ggcat_api::GeneralSequenceBlockData::FASTA((
+			PathBuf::from(file),
+			None,
+		    )));
+		}
+		instance.build_graph(
+		    ggcat_inputs,
+		    graph_file,
+		    Some(&seq_files),
+		    31,
+		    4,
+		    false,
+		    None,
+		    true,
+		    1,
+		    ExtraElaboration::UnitigLinks,
+		);
+		i = i + 1;
+	    }
 	}
 
 	// Calculate distances between some input fasta files
