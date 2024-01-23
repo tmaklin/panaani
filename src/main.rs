@@ -28,7 +28,6 @@ use ggcat_api::{
     ExtraElaboration,
 };
 
-use ggcat_api::GeneralSequenceBlockData::FASTA;
 use std::path::PathBuf;
 
 #[derive(Parser)]
@@ -105,28 +104,25 @@ fn main() {
 		.build_global()
 		.unwrap();
 
-	    let sketches = file_io::fastx_to_sketches(seq_files, &sketch_params, true);
-	    let adjust_ani = regression::get_model(sketch_params.c, false);
 	    println!("Calculating ANIs...");
 
 	    let (sender, receiver) = channel();
 
-	    sketches.iter().combinations(2).par_bridge().for_each_with(sender, |s, pair| {
-		let map_params = chain::map_params_from_sketch(pair.first().unwrap(), false, &cmd_params, &adjust_ani);
-		let res = chain::chain_seeds(pair.first().unwrap(), pair.last().unwrap(), map_params);
-		println!("{}\t{}\t{}\t{}\t{}", pair.first().unwrap().file_name, pair.last().unwrap().file_name,
-			 res.ani, res.align_fraction_query, res.align_fraction_ref);
-		let mut ret = 1.0;
-		if res.ani > 0.0 && res.ani < 1.0 && !res.ani.is_nan() {
-		    ret = 1.0 - res.ani;
-		}
-		s.send(ret);
+	    seq_files.iter().cloned().combinations(2).par_bridge().for_each_with(sender, |s, pair| {
+		let sketches = file_io::fastx_to_sketches(&pair, &sketch_params, true);
+		let adjust_ani = regression::get_model(sketch_params.c, false);
+		let map_params = chain::map_params_from_sketch(sketches.first().unwrap(), false, &cmd_params, &adjust_ani);
+		let res = chain::chain_seeds(sketches.first().unwrap(), sketches.last().unwrap(), map_params);
+		let _ = s.send(res);
 	    });
-	    let mut ani_result: Vec<f32> = receiver.iter().collect();
+	    let mut ani_result: Vec<AniEstResult> = receiver.iter().collect();
 
-	    println!("{}", ani_result.len());
+	    // Ensure output order is same regardless of parallelization
+	    ani_result.sort_by_key(|k| (k.ref_file.clone(), k.query_file.clone()));
+
+	    let mut ani: Vec<f32> = ani_result.into_iter().map(|x| if x.ani > 0.0 && x.ani < 1.0 && !x.ani.is_nan() { 1.0 - x.ani } else { 1.0 }).collect();
 	    let num_seqs = seq_files.len();
-	    let dend = linkage(&mut ani_result, num_seqs, Method::Single);
+	    let dend = linkage(&mut ani, num_seqs, Method::Single);
 
 	    let cutoff = 1.0 - 0.95;
 	    let mut num_groups = 0;
@@ -163,7 +159,6 @@ fn main() {
 		seqs_by_group[*group].push(seq_index);
 	    }
 
-	    let mut i = 0;
 	    println!("Building pangenome graphs...");
 	    let instance = GGCATInstance::create(GGCATConfig {
 		temp_dir: Some(PathBuf::from("/tmp")),
@@ -173,7 +168,7 @@ fn main() {
 		intermediate_compression_level: None,
 		stats_file: None,
 	    });
-	    i = 0;
+	    let mut i = 0;
 	    for group in seqs_by_group {
 		println!("Building graph {}...", i.to_string() + ".dbg");
 		let graph_file = PathBuf::from(i.to_string() + ".dbg");
