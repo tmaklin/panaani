@@ -64,14 +64,14 @@ fn main() {
 		stats_file: None,
 	    });
 
-	    println!("Calculating ANIs...");
-	    let ani_result = panaani::ani_from_fastx_files(seq_files);
+	    let mut iter = 0;
+	    let mut iter_inputs = seq_files.clone();
 
-	    println!("Building dendrogram...");
-	    let seqs_by_group = panaani::single_linkage_cluster(&ani_result, seq_files.len());
-
-	    println!("Building pangenome graphs...");
-	    panaani::build_pangenome_representations(&seq_files, &seqs_by_group, &"./".to_string(), instance);
+	    while iter < 1 {
+		let (iter_clusters, n_clusters) = panaani::dereplicate_iter(&iter_inputs, instance);
+		iter_inputs = (0..n_clusters).map(|x| x.to_string() + ".dbg.fasta").collect();
+		iter = iter + 1;
+	    }
 	}
 
 	// Calculate distances between some input fasta files

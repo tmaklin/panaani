@@ -157,3 +157,18 @@ pub fn build_pangenome_representations(seq_files: &Vec<String>, seq_clusters: &V
 	i = i + 1;
     }
 }
+pub fn dereplicate_iter(seq_files: &Vec<String>, instance: &ggcat_api::GGCATInstance) -> (Vec<usize>, usize) {
+    println!("Calculating ANIs...");
+    let ani_result = ani_from_fastx_files(seq_files);
+
+    println!("Building dendrogram...");
+    let seqs_by_group = single_linkage_cluster(&ani_result, seq_files.len());
+
+    println!("Building pangenome graphs...");
+    build_pangenome_representations(&seq_files, &seqs_by_group, &"./".to_string(), instance);
+
+    let n_clusters = seqs_by_group.len();
+    let clusters: Vec<usize> = seqs_by_group.into_iter().flatten().collect();
+
+    return (clusters, n_clusters);
+}
