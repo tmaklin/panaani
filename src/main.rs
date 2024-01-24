@@ -64,14 +64,36 @@ fn main() {
 		stats_file: None,
 	    });
 
+	    let batch_step = 50;
 	    let mut iter = 0;
 	    let mut iter_inputs = seq_files.clone();
+	    let mut batch_size = batch_step;
 
-	    while iter < 1 {
-		let (iter_clusters, n_clusters) = panaani::dereplicate_iter(&iter_inputs, instance);
-		iter_inputs = (0..n_clusters).map(|x| x.to_string() + ".dbg.fasta").collect();
-		iter = iter + 1;
+	    while batch_size < iter_inputs.len() {
+		println!("iter: {}\tProcessing inputs in batches of {} sequences", iter, batch_size);
+		let mut rng = rand::thread_rng();
+
+		// horrible hack to use random file names within each batch
+		let res: Vec<(Vec<String>, Vec<String>, Vec<usize>, usize)> = iter_inputs
+		    .chunks(batch_size)
+		    .map(|x| panaani::dereplicate_iter(&Vec::from(x), &(iter.to_string() + "_" + &(rng.gen::<u64>() as u64).to_string() + "-" ), instance))
+		    .collect();
+
+		// payment for horrible hack
+		let mut hash: HashSet<String> = HashSet::new();
+		for i in 0..res.len() {
+		    for j in 0..res[i].1.len() {
+			hash.insert(res[i].1[j].clone());
+		    }
+		}
+		iter_inputs = hash.into_iter().collect();
+
+		batch_size += batch_step;
+		iter += 1;
 	    }
+	    println!("iter: {}\tAll inputs fit in the same batch", iter);
+	    let (seqs, pangenome_files, clusters, n_clusters) = panaani::dereplicate_iter(&iter_inputs, &"panANI-".to_string(), instance);
+	    println!("Created {} clusters", n_clusters);
 	}
 
 	// Calculate distances between some input fasta files

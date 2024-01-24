@@ -165,10 +165,11 @@ pub fn dereplicate_iter(seq_files: &Vec<String>, instance: &ggcat_api::GGCATInst
     let seqs_by_group = single_linkage_cluster(&ani_result, seq_files.len());
 
     println!("Building pangenome graphs...");
-    build_pangenome_representations(&seq_files, &seqs_by_group, &"./".to_string(), instance);
+    build_pangenome_representations(&seq_files, &seqs_by_group, out_prefix, instance);
 
     let n_clusters = seqs_by_group.len();
+    let pangenome_files = (0..n_clusters).map(|x| out_prefix.to_owned() + &x.to_string() + ".dbg.fasta").collect();
     let clusters: Vec<usize> = seqs_by_group.into_iter().flatten().collect();
 
-    return (clusters, n_clusters);
+    return (seq_files.to_vec(), pangenome_files, clusters, n_clusters);
 }
