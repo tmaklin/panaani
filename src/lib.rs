@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 use std::sync::mpsc::channel;
+use std::collections::HashMap;
 
 use itertools::Itertools;
 use rayon::iter::ParallelBridge;
@@ -58,7 +59,7 @@ pub fn ani_from_fastx_files(fastx_files: &Vec<String>) -> Vec<skani::types::AniE
     return ani_result;
 }
 
-pub fn cut_dendrogram(dendr: &kodama::Dendrogram<f32>, height: f32) -> Vec<Vec<usize>> {
+pub fn cut_dendrogram(dendr: &kodama::Dendrogram<f32>, height: f32) -> Vec<usize> {
     let cutoff = 1.0 - height;
     let num_seqs = dendr.observations();
     let num_nodes = 2 * num_seqs - 1;
@@ -89,34 +90,32 @@ pub fn cut_dendrogram(dendr: &kodama::Dendrogram<f32>, height: f32) -> Vec<Vec<u
 	}
     }
 
-    let mut seqs_by_group = vec![Vec::new(); num_groups];
-    for (seq_index, group) in groups.iter().enumerate() {
-	seqs_by_group[*group].push(seq_index);
-    }
-
-    return seqs_by_group;
+    return groups;
 }
 
-pub fn single_linkage_cluster(ani_result: &Vec<skani::types::AniEstResult>, num_seqs: usize) -> Vec<Vec<usize>> {
+pub fn single_linkage_cluster(ani_result: &Vec<skani::types::AniEstResult>, num_seqs: usize) -> Vec<usize> {
     let mut ani: Vec<f32> = ani_result.into_iter().map(|x| if x.ani > 0.0 && x.ani < 1.0 && !x.ani.is_nan() { 1.0 - x.ani } else { 1.0 }).collect();
     let dend = kodama::linkage(&mut ani, num_seqs, kodama::Method::Single);
 
-    return cut_dendrogram(&dend, 0.95);
+    return cut_dendrogram(&dend, 0.97);
 }
 
-pub fn single_linkage_cluster2(ani_result: &Vec<(String, String, f32, f32, f32)>, num_seqs: usize) -> Vec<Vec<usize>> {
+pub fn single_linkage_cluster2(ani_result: &Vec<(String, String, f32, f32, f32)>, num_seqs: usize) -> Vec<usize> {
     let mut ani: Vec<f32> = ani_result.into_iter().map(|x| if x.2 > 0.0 && x.2 < 1.0 && !x.2.is_nan() { 1.0 - x.2 } else { 1.0 }).collect();
     let dend = kodama::linkage(&mut ani, num_seqs, kodama::Method::Single);
 
-    return cut_dendrogram(&dend, 0.95);
+    return cut_dendrogram(&dend, 0.97);
 }
 
 pub fn build_pangenome_graph(inputs: Vec<ggcat_api::GeneralSequenceBlockData>,
 			     input_seq_names: &Vec<String>,
 			     prefix: &String, instance: &ggcat_api::GGCATInstance) {
-    let graph_file = PathBuf::from(prefix.to_owned() + ".dbg.fasta");
+
     let kmer_size = 51;
     let min_multiplicity = 1;
+
+
+    let graph_file = PathBuf::from(prefix.to_owned());
     instance.build_graph(
 	inputs,
 	graph_file,
@@ -142,36 +141,49 @@ pub fn open_ggcat_inputs(seq_files: &Vec<String>) -> Vec<ggcat_api::GeneralSeque
     return ggcat_inputs;
 }
 
-pub fn build_pangenome_representations(seq_files: &Vec<String>, seq_clusters: &Vec<Vec<usize>>,
-				       out_prefix: &String, instance: &ggcat_api::GGCATInstance) {
-    let mut i = 0;
-    for group in seq_clusters {
-	println!("Building graph {}...", i.to_string() + ".dbg.fasta");
-	let prefix = out_prefix.to_owned() + &i.to_string();
+pub fn build_pangenome_representations(seq_files: &Vec<(String, String)>,
+				       instance: &ggcat_api::GGCATInstance) {
 
+    let mut files_in_cluster: HashMap<String, Vec<String>> = HashMap::new();
+
+    for val in seq_files.iter() {
+	if files_in_cluster.contains_key(&val.1) {
+	    files_in_cluster.get_mut(&val.1).unwrap().push(val.0.clone());
+	} else {
+	    files_in_cluster.insert(val.1.clone(), vec![val.0.clone()]);
+	}
+    }
+
+    for (graph_name, files) in files_in_cluster {
+	println!("Building graph {}...", graph_name);
 	let mut ggcat_input_names: Vec<String> = Vec::new();
-	for seq in group {
-	    ggcat_input_names.push(seq_files[seq.clone()].clone());
+	for file in files {
+	    ggcat_input_names.push(file);
 	}
 
 	let ggcat_inputs = open_ggcat_inputs(&ggcat_input_names);
-	build_pangenome_graph(ggcat_inputs, &ggcat_input_names, &prefix, instance);
-	i = i + 1;
+	build_pangenome_graph(ggcat_inputs, &ggcat_input_names, &graph_name, instance);
     }
+
 }
-pub fn dereplicate_iter(seq_files: &Vec<String>, instance: &ggcat_api::GGCATInstance) -> (Vec<usize>, usize) {
+
+pub fn dereplicate_iter(old_clusters: Vec<(String, String)>, out_prefix: &String, instance: &ggcat_api::GGCATInstance) -> Vec<(String, String)> {
     println!("Calculating ANIs...");
-    let ani_result = ani_from_fastx_files(seq_files);
+    let fastx_files = old_clusters.iter().map(|x| x.1.clone()).unique().collect();
+    let ani_result = ani_from_fastx_files(&fastx_files);
 
     println!("Building dendrogram...");
-    let seqs_by_group = single_linkage_cluster(&ani_result, seq_files.len());
+    let clusters = single_linkage_cluster(&ani_result, fastx_files.len());
+
+    let mut old_cluster_to_new_cluster: HashMap<String, usize> = HashMap::new();
+    fastx_files.iter().sorted().zip(clusters.iter()).for_each(|x| { old_cluster_to_new_cluster.insert(x.0.clone(), x.1.clone()); });
+    let new_clusters: Vec<(String, String)> = old_clusters
+	.iter()
+	.map(|x| (x.0.clone(), out_prefix.to_owned() + &old_cluster_to_new_cluster.get(&x.1).unwrap().to_string() + ".dbg.fasta"))
+	.collect();
 
     println!("Building pangenome graphs...");
-    build_pangenome_representations(&seq_files, &seqs_by_group, out_prefix, instance);
+    build_pangenome_representations(&new_clusters, instance);
 
-    let n_clusters = seqs_by_group.len();
-    let pangenome_files = (0..n_clusters).map(|x| out_prefix.to_owned() + &x.to_string() + ".dbg.fasta").collect();
-    let clusters: Vec<usize> = seqs_by_group.into_iter().flatten().collect();
-
-    return (seq_files.to_vec(), pangenome_files, clusters, n_clusters);
+    return new_clusters;
 }

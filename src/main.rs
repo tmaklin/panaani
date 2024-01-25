@@ -6,8 +6,11 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 //
-use std::path::PathBuf;
 use std::collections::HashSet;
+use std::path::PathBuf;
+use rand::Rng;
+
+use itertools::Itertools;
 
 use clap::{Parser, Subcommand};
 
@@ -66,34 +69,35 @@ fn main() {
 
 	    let batch_step = 50;
 	    let mut iter = 0;
-	    let mut iter_inputs = seq_files.clone();
+	    let mut iter_inputs: Vec<(String, String)> = seq_files.iter().cloned().zip(seq_files.iter().cloned()).collect();
 	    let mut batch_size = batch_step;
+	    let mut n_remaining = seq_files.len();
 
-	    while batch_size < iter_inputs.len() {
+	    while batch_size < n_remaining {
 		println!("iter: {}\tProcessing inputs in batches of {} sequences", iter, batch_size);
 		let mut rng = rand::thread_rng();
 
 		// horrible hack to use random file names within each batch
-		let res: Vec<(Vec<String>, Vec<String>, Vec<usize>, usize)> = iter_inputs
+		iter_inputs = iter_inputs
 		    .chunks(batch_size)
-		    .map(|x| panaani::dereplicate_iter(&Vec::from(x), &(iter.to_string() + "_" + &(rng.gen::<u64>() as u64).to_string() + "-" ), instance))
+		    .map(|x| panaani::dereplicate_iter(Vec::from(x), &(iter.to_string() + "_" + &(rng.gen::<u64>() as u64).to_string() + "-" ), instance))
+		    .flatten()
 		    .collect();
 
-		// payment for horrible hack
-		let mut hash: HashSet<String> = HashSet::new();
-		for i in 0..res.len() {
-		    for j in 0..res[i].1.len() {
-			hash.insert(res[i].1[j].clone());
-		    }
-		}
-		iter_inputs = hash.into_iter().collect();
+		n_remaining = iter_inputs.iter().map(|x| x.1.clone()).unique().collect::<Vec<String>>().len();
 
 		batch_size += batch_step;
 		iter += 1;
 	    }
+
 	    println!("iter: {}\tAll inputs fit in the same batch", iter);
-	    let (seqs, pangenome_files, clusters, n_clusters) = panaani::dereplicate_iter(&iter_inputs, &"panANI-".to_string(), instance);
+	    let final_clusters = panaani::dereplicate_iter(iter_inputs, &"panANI-".to_string(), instance);
+	    let n_clusters = final_clusters.iter().map(|x| x.1.clone()).unique().collect::<Vec<String>>().len();
+
 	    println!("Created {} clusters", n_clusters);
+	    for cluster in final_clusters {
+		println!("{}\t{}", cluster.0, cluster.1);
+	    }
 	}
 
 	// Calculate distances between some input fasta files
@@ -122,7 +126,7 @@ fn main() {
 		stats_file: None,
 	    });
 
-	    panaani::build_pangenome_graph(ggcat_inputs, seq_files, &"out".to_string(), instance);
+	    panaani::build_pangenome_graph(ggcat_inputs, seq_files, &("out".to_string() + ".dbg.fasta"), instance);
 	}
 
 	// Cluster distance data created with `skani dist` or `panaani dist`.
