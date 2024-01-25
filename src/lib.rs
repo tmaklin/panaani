@@ -36,10 +36,10 @@ pub fn ani_from_fastx_files(fastx_files: &Vec<String>) -> Vec<skani::types::AniE
         max_results: 10000000,
         individual_contig_q: false,
         individual_contig_r: false,
-        min_aligned_frac: 0.15,
+        min_aligned_frac: 0.0,
         keep_refs: false,
         est_ci: false,
-        learned_ani: true,
+        learned_ani: false,
         detailed_out: false,
 	rescue_small: false,
 	distance: true,
@@ -115,17 +115,19 @@ pub fn build_pangenome_graph(inputs: Vec<ggcat_api::GeneralSequenceBlockData>,
 			     input_seq_names: &Vec<String>,
 			     prefix: &String, instance: &ggcat_api::GGCATInstance) {
     let graph_file = PathBuf::from(prefix.to_owned() + ".dbg.fasta");
+    let kmer_size = 51;
+    let min_multiplicity = 1;
     instance.build_graph(
 	inputs,
 	graph_file,
 	Some(input_seq_names),
-	31,
+	kmer_size,
 	4,
 	false,
 	None,
-	true,
-	1,
-	ggcat_api::ExtraElaboration::UnitigLinks,
+	false,
+	min_multiplicity,
+	ggcat_api::ExtraElaboration::GreedyMatchtigs,
     );
 }
 

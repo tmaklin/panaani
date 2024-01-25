@@ -57,9 +57,9 @@ fn main() {
 		.unwrap();
 	    let instance = GGCATInstance::create(GGCATConfig {
 		temp_dir: Some(PathBuf::from("/tmp")),
-		memory: 2.0,
+		memory: 8.0,
 		prefer_memory: true,
-		total_threads_count: 1,
+		total_threads_count: 4,
 		intermediate_compression_level: None,
 		stats_file: None,
 	    });
