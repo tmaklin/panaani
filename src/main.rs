@@ -8,11 +8,9 @@
 //
 use std::collections::HashSet;
 use std::path::PathBuf;
-use rand::Rng;
-
-use itertools::Itertools;
 
 use clap::{Parser, Subcommand};
+use itertools::Itertools;
 
 use ggcat_api::{GGCATConfig,GGCATInstance};
 
@@ -58,44 +56,13 @@ fn main() {
 		.thread_name(|i| format!("rayon-thread-{}", i))
 		.build_global()
 		.unwrap();
-	    let instance = GGCATInstance::create(GGCATConfig {
-		temp_dir: Some(PathBuf::from("/tmp")),
-		memory: 8.0,
-		prefer_memory: true,
-		total_threads_count: 4,
-		intermediate_compression_level: None,
-		stats_file: None,
-	    });
-
 	    let batch_step = 50;
-	    let mut iter = 0;
-	    let mut iter_inputs: Vec<(String, String)> = seq_files.iter().cloned().zip(seq_files.iter().cloned()).collect();
-	    let mut batch_size = batch_step;
-	    let mut n_remaining = seq_files.len();
 
-	    while batch_size < n_remaining {
-		println!("iter: {}\tProcessing inputs in batches of {} sequences", iter, batch_size);
-		let mut rng = rand::thread_rng();
-
-		// horrible hack to use random file names within each batch
-		iter_inputs = iter_inputs
-		    .chunks(batch_size)
-		    .map(|x| panaani::dereplicate_iter(Vec::from(x), &(iter.to_string() + "_" + &(rng.gen::<u64>() as u64).to_string() + "-" ), instance))
-		    .flatten()
-		    .collect();
-
-		n_remaining = iter_inputs.iter().map(|x| x.1.clone()).unique().collect::<Vec<String>>().len();
-
-		batch_size += batch_step;
-		iter += 1;
-	    }
-
-	    println!("iter: {}\tAll inputs fit in the same batch", iter);
-	    let final_clusters = panaani::dereplicate_iter(iter_inputs, &"panANI-".to_string(), instance);
-	    let n_clusters = final_clusters.iter().map(|x| x.1.clone()).unique().collect::<Vec<String>>().len();
+	    let clusters = panaani::dereplicate(&seq_files, &seq_files, &batch_step);
+	    let n_clusters = clusters.iter().map(|x| x.1.clone()).unique().collect::<Vec<String>>().len();
 
 	    println!("Created {} clusters", n_clusters);
-	    for cluster in final_clusters {
+	    for cluster in clusters {
 		println!("{}\t{}", cluster.0, cluster.1);
 	    }
 	}

@@ -3,8 +3,11 @@ use std::sync::mpsc::channel;
 use std::collections::HashMap;
 
 use itertools::Itertools;
+use rand::Rng;
 use rayon::iter::ParallelBridge;
 use rayon::iter::ParallelIterator;
+
+use ggcat_api::{GGCATConfig,GGCATInstance};
 
 pub fn compare_fastx_files(reference: &String, query: &String,
 		       sketch_params: &skani::params::SketchParams,
@@ -186,4 +189,37 @@ pub fn dereplicate_iter(old_clusters: Vec<(String, String)>, out_prefix: &String
     build_pangenome_representations(&new_clusters, instance);
 
     return new_clusters;
+}
+
+pub fn dereplicate(seq_files: &Vec<String>, initial_clusters: &Vec<String>, batch_step: &usize) -> Vec<(String, String)> {
+    let instance = GGCATInstance::create(GGCATConfig {
+	temp_dir: Some(PathBuf::from("/tmp")),
+	memory: 8.0,
+	prefer_memory: true,
+	total_threads_count: 4,
+	intermediate_compression_level: None,
+	stats_file: None,
+    });
+
+    let mut iter = 0;
+    let mut iter_inputs: Vec<(String, String)> = seq_files.iter().cloned().zip(initial_clusters.iter().cloned()).collect();
+
+    let mut n_remaining = seq_files.len();
+    while (iter + 1)*batch_step < n_remaining {
+	let mut rng = rand::thread_rng();
+
+	// horrible hack to use random file names within each batch
+	iter_inputs = iter_inputs
+	    .chunks((iter + 1)*batch_step)
+	    .map(|x| dereplicate_iter(Vec::from(x), &(iter.to_string() + "_" + &(rng.gen::<u64>() as u64).to_string() + "-" ), instance))
+	    .flatten()
+	    .collect();
+
+	n_remaining = iter_inputs.iter().map(|x| x.1.clone()).unique().collect::<Vec<String>>().len();
+	iter += 1;
+    }
+
+    let final_clusters = dereplicate_iter(iter_inputs, &"panANI-".to_string(), instance);
+
+    return final_clusters;
 }
