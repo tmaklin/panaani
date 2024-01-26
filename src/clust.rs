@@ -50,11 +50,12 @@ pub fn cut_dendrogram(dendr: &kodama::Dendrogram<f32>, height: f32) -> Vec<usize
 
 pub fn single_linkage_cluster(
     ani_result: &Vec<(String, String, f32, f32, f32)>,
-    num_seqs: usize,
     params: KodamaParams,
 ) -> Vec<usize> {
-    let mut ani: Vec<f32> = ani_result.into_iter().map(|x| x.2).collect();
-    let dend = kodama::linkage(&mut ani, num_seqs, params.method);
+
+    let mut flattened_similarity_matrix: Vec<f32> = ani_result.into_iter().map(|x| x.2).collect();
+    let num_seqs = (0.5*(f64::sqrt((8*flattened_similarity_matrix.len() + 1) as f64) + 1.0)).round() as usize;
+    let dend = kodama::linkage(&mut flattened_similarity_matrix, num_seqs, params.method);
 
     return cut_dendrogram(&dend, params.cutoff);
 }

@@ -51,7 +51,6 @@ pub fn dereplicate_iter(
     println!("Building dendrogram...");
     let clusters = clust::single_linkage_cluster(
         &ani_result,
-        fastx_files.len(),
         kodama_params.unwrap_or(clust::KodamaParams::default()),
     );
 
