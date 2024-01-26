@@ -6,23 +6,23 @@ use ggcat_api::{GGCATConfig,GGCATInstance};
 #[derive(Clone)]
 pub struct GGCATParams {
     // k-mer sketching
-    kmer_size: u32,
-    kmer_min_multiplicity: u64,
+    pub kmer_size: u32,
+    pub kmer_min_multiplicity: u64,
 
     // Graph construction
-    minimizer_length: Option<usize>,
-    no_reverse_complement: bool,
-    unitig_type: ggcat_api::ExtraElaboration,
+    pub minimizer_length: Option<usize>,
+    pub no_reverse_complement: bool,
+    pub unitig_type: ggcat_api::ExtraElaboration,
 
     // Resources
-    threads: u32,
-    memory: u32,
-    prefer_memory: bool,
-    temp_dir_path: String,
+    pub threads: u32,
+    pub memory: u32,
+    pub prefer_memory: bool,
+    pub temp_dir_path: String,
 
     // Intermediate outputs
-    intermediate_compression_level: Option<u32>,
-    stats_file: Option<PathBuf>,
+    pub intermediate_compression_level: Option<u32>,
+    pub stats_file: Option<PathBuf>,
 }
 
 impl Default for GGCATParams {

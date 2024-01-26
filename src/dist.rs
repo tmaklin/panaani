@@ -7,19 +7,19 @@ use rayon::iter::ParallelIterator;
 #[derive(Clone)]
 pub struct SkaniParams {
     // k-mer sketching
-    kmer_size: u8,
-    kmer_subsampling_rate: u16,
-    marker_compression_factor: u16,
-    rescue_small: bool,
+    pub kmer_size: u8,
+    pub kmer_subsampling_rate: u16,
+    pub marker_compression_factor: u16,
+    pub rescue_small: bool,
 
     // ANI estimation
-    clip_tails: bool,
-    median: bool,
-    adjust_ani: bool,
+    pub clip_tails: bool,
+    pub median: bool,
+    pub adjust_ani: bool,
 
     // Results reporting
-    min_aligned_frac: f64,
-    bootstrap_ci: bool,
+    pub min_aligned_frac: f64,
+    pub bootstrap_ci: bool,
 }
 
 impl Default for SkaniParams {
