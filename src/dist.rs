@@ -4,6 +4,7 @@ use itertools::Itertools;
 use rayon::iter::ParallelBridge;
 use rayon::iter::ParallelIterator;
 
+#[derive(Clone)]
 pub struct SkaniParams {
     // k-mer sketching
     kmer_size: u8,

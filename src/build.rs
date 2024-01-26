@@ -3,6 +3,7 @@ use std::path::PathBuf;
 
 use ggcat_api::{GGCATConfig,GGCATInstance};
 
+#[derive(Clone)]
 pub struct GGCATParams {
     // k-mer sketching
     kmer_size: u32,
