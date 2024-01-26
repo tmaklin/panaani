@@ -40,6 +40,9 @@ enum Commands {
 	temp_dir_path: Option<String>,
 
 	// Dereplicate parameters
+	#[arg(long = "ani-threshold", default_value_t = 0.97)]
+	ani_threshold: f32,
+
 	#[arg(short = 'b', long = "batch-step", default_value_t = 50)]
 	batch_step: usize,
     },
@@ -71,6 +74,7 @@ fn main() {
 				     threads,
 				     memory,
 				     temp_dir_path,
+				     ani_threshold,
 				     batch_step,
 	}) => {
 	    rayon::ThreadPoolBuilder::new()
@@ -79,14 +83,15 @@ fn main() {
 		.build_global()
 		.unwrap();
 
-	    let params: panaani::PanaaniParams = panaani::PanaaniParams { batch_step: *batch_step };
+	    let params: panaani::PanaaniParams = panaani::PanaaniParams { batch_step: *batch_step, ani_threshold: *ani_threshold };
 	    let ggcat_params: panaani::build::GGCATParams = panaani::build::GGCATParams {
 		temp_dir_path: temp_dir_path.clone().unwrap_or("./".to_string()),
 		threads: *threads,
 		memory: *memory,
 		..Default::default() };
+	    let kodama_params = panaani::clust::KodamaParams { cutoff: *ani_threshold, method: kodama::Method::Single  };
 
-	    let clusters = panaani::dereplicate(&seq_files, &seq_files, Some(params), None, Some(ggcat_params));
+	    let clusters = panaani::dereplicate(&seq_files, &seq_files, Some(params), None, Some(kodama_params), Some(ggcat_params));
 	    let n_clusters = clusters.iter().map(|x| x.1.clone()).unique().collect::<Vec<String>>().len();
 
 	    println!("Created {} clusters", n_clusters);
@@ -139,7 +144,7 @@ fn main() {
 	    }
 	    res.sort_by_key(|k| (k.0.clone(), k.1.clone()));
 
-	    clust::single_linkage_cluster2(&res, seq_names.len());
+	    clust::single_linkage_cluster2(&res, seq_names.len(), clust::KodamaParams::default());
 	}
 	None => {}
     }

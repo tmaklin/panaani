@@ -1,4 +1,20 @@
 
+#[derive(Clone)]
+pub struct KodamaParams {
+    // Hierarchical clustering
+    pub method: kodama::Method,
+    pub cutoff: f32,
+}
+
+impl Default for KodamaParams {
+    fn default() -> KodamaParams {
+	KodamaParams {
+	    method: kodama::Method::Single,
+	    cutoff: 0.97,
+	}
+    }
+}
+
 pub fn cut_dendrogram(dendr: &kodama::Dendrogram<f32>, height: f32) -> Vec<usize> {
     let cutoff = 1.0 - height;
     let num_seqs = dendr.observations();
@@ -33,16 +49,16 @@ pub fn cut_dendrogram(dendr: &kodama::Dendrogram<f32>, height: f32) -> Vec<usize
     return groups;
 }
 
-pub fn single_linkage_cluster(ani_result: &Vec<skani::types::AniEstResult>, num_seqs: usize) -> Vec<usize> {
+pub fn single_linkage_cluster(ani_result: &Vec<skani::types::AniEstResult>, num_seqs: usize, params: KodamaParams) -> Vec<usize> {
     let mut ani: Vec<f32> = ani_result.into_iter().map(|x| if x.ani > 0.0 && x.ani < 1.0 && !x.ani.is_nan() { 1.0 - x.ani } else { 1.0 }).collect();
-    let dend = kodama::linkage(&mut ani, num_seqs, kodama::Method::Single);
+    let dend = kodama::linkage(&mut ani, num_seqs, params.method);
 
-    return cut_dendrogram(&dend, 0.97);
+    return cut_dendrogram(&dend, params.cutoff);
 }
 
-pub fn single_linkage_cluster2(ani_result: &Vec<(String, String, f32, f32, f32)>, num_seqs: usize) -> Vec<usize> {
+pub fn single_linkage_cluster2(ani_result: &Vec<(String, String, f32, f32, f32)>, num_seqs: usize, params: KodamaParams) -> Vec<usize> {
     let mut ani: Vec<f32> = ani_result.into_iter().map(|x| if x.2 > 0.0 && x.2 < 1.0 && !x.2.is_nan() { 1.0 - x.2 } else { 1.0 }).collect();
-    let dend = kodama::linkage(&mut ani, num_seqs, kodama::Method::Single);
+    let dend = kodama::linkage(&mut ani, num_seqs, params.method);
 
-    return cut_dendrogram(&dend, 0.97);
+    return cut_dendrogram(&dend, params.cutoff);
 }
