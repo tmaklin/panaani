@@ -25,21 +25,37 @@ struct Cli {
 #[derive(Subcommand)]
 enum Commands {
     // Print testing stuff
+    Dereplicate {
+	#[arg(group = "input", required = true)]
+	seq_files: Vec<String>,
+
+	// Resources
+	#[arg(short = 't', long = "threads", default_value_t = 1)]
+	threads: u32,
+
+	#[arg(short = 'm', long = "memory", default_value_t = 4)]
+	memory: u32,
+
+	#[arg(long = "tmp-dir", required = false)]
+	temp_dir_path: Option<String>,
+
+	// Dereplicate parameters
+	#[arg(short = 'b', long = "batch-step", default_value_t = 50)]
+	batch_step: usize,
+    },
+
     Dist {
 	#[arg(group = "input")]
 	seq_files: Vec<String>,
     },
     Build {
-	#[arg(group = "input")]
+	#[arg(group = "input", required = true)]
 	seq_files: Vec<String>,
+
     },
     Cluster {
 	#[arg(group = "input")]
 	dist_file: String,
-    },
-    Dereplicate {
-	#[arg(group = "input")]
-	seq_files: Vec<String>,
     },
 }
 
@@ -51,15 +67,26 @@ fn main() {
     match &cli.command {
 
 	// Run the full pipeline
-	Some(Commands::Dereplicate { seq_files }) => {
+	Some(Commands::Dereplicate { seq_files,
+				     threads,
+				     memory,
+				     temp_dir_path,
+				     batch_step,
+	}) => {
 	    rayon::ThreadPoolBuilder::new()
-		.num_threads(4)
+		.num_threads(*threads as usize)
 		.thread_name(|i| format!("rayon-thread-{}", i))
 		.build_global()
 		.unwrap();
-	    let batch_step = 50;
 
-	    let clusters = panaani::dereplicate(&seq_files, &seq_files, &batch_step, None, None);
+	    let params: panaani::PanaaniParams = panaani::PanaaniParams { batch_step: *batch_step };
+	    let ggcat_params: panaani::build::GGCATParams = panaani::build::GGCATParams {
+		temp_dir_path: temp_dir_path.clone().unwrap_or("./".to_string()),
+		threads: *threads,
+		memory: *memory,
+		..Default::default() };
+
+	    let clusters = panaani::dereplicate(&seq_files, &seq_files, Some(params), None, Some(ggcat_params));
 	    let n_clusters = clusters.iter().map(|x| x.1.clone()).unique().collect::<Vec<String>>().len();
 
 	    println!("Created {} clusters", n_clusters);

@@ -3,9 +3,22 @@ use std::collections::HashMap;
 use itertools::Itertools;
 use rand::Rng;
 
-mod build;
+pub mod build;
 pub mod clust;
 mod dist;
+
+#[derive(Clone)]
+pub struct PanaaniParams {
+    pub batch_step: usize,
+}
+
+impl Default for PanaaniParams {
+    fn default() -> PanaaniParams {
+	PanaaniParams {
+	    batch_step: 50,
+	}
+    }
+}
 
 pub fn dereplicate_iter(old_clusters: Vec<(String, String)>, out_prefix: &String,
 			skani_params: Option<dist::SkaniParams>, ggcat_params: Option<build::GGCATParams>)
@@ -30,18 +43,19 @@ pub fn dereplicate_iter(old_clusters: Vec<(String, String)>, out_prefix: &String
     return new_clusters;
 }
 
-pub fn dereplicate(seq_files: &Vec<String>, initial_clusters: &Vec<String>, batch_step: &usize,
+pub fn dereplicate(seq_files: &Vec<String>, initial_clusters: &Vec<String>, params: Option<PanaaniParams>,
 		   skani_params: Option<dist::SkaniParams>, ggcat_params: Option<build::GGCATParams>)
 		   -> Vec<(String, String)> {
-    let mut iter = 0;
+    let my_params = params.unwrap_or(PanaaniParams::default());
+    let mut iter: usize = 0;
     let mut iter_inputs: Vec<(String, String)> = seq_files.iter().cloned().zip(initial_clusters.iter().cloned()).collect();
 
-    let mut n_remaining = seq_files.len(); while (iter + 1)*batch_step
-    < n_remaining { let mut rng = rand::thread_rng();
+    let mut n_remaining: usize = seq_files.len();
+    while (iter + 1)*my_params.batch_step < n_remaining { let mut rng = rand::thread_rng();
 
 	// horrible hack to use random file names within each batch
 	iter_inputs = iter_inputs
-	    .chunks((iter + 1)*batch_step)
+	    .chunks((iter + 1)*my_params.batch_step)
 		    .map(|x| dereplicate_iter(Vec::from(x), &(iter.to_string() + "_" + &(rng.gen::<u64>() as u64).to_string() + "-" ),
 		    skani_params.clone(), ggcat_params.clone()))
 	    .flatten()
