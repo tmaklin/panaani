@@ -14,6 +14,10 @@ use itertools::Itertools;
 
 use ggcat_api::{GGCATConfig,GGCATInstance};
 
+pub mod build;
+pub mod clust;
+pub mod dist;
+
 #[derive(Parser)]
 #[command(version)]
 struct Cli {
@@ -69,7 +73,7 @@ fn main() {
 
 	// Calculate distances between some input fasta files
 	Some(Commands::Dist { seq_files }) => {
-	    let results = panaani::ani_from_fastx_files(seq_files);
+	    let results = dist::ani_from_fastx_files(seq_files);
 	    for res in results {
 		println!("{}\t{}\t{}\t{}\t{}",
 			 res.ref_file,
@@ -83,7 +87,7 @@ fn main() {
 
 	// Build a de Bruijn graph from some input fasta files
 	Some(Commands::Build { seq_files  }) => {
-	    let ggcat_inputs = panaani::open_ggcat_inputs(seq_files);
+	    let ggcat_inputs = build::open_ggcat_inputs(seq_files);
 	    let instance = GGCATInstance::create(GGCATConfig {
 		temp_dir: Some(PathBuf::from("./")),
 		memory: 2.0,
@@ -93,7 +97,7 @@ fn main() {
 		stats_file: None,
 	    });
 
-	    panaani::build_pangenome_graph(ggcat_inputs, seq_files, &("out".to_string() + ".dbg.fasta"), instance);
+	    build::build_pangenome_graph(ggcat_inputs, seq_files, &("out".to_string() + ".dbg.fasta"), instance);
 	}
 
 	// Cluster distance data created with `skani dist` or `panaani dist`.
@@ -120,7 +124,7 @@ fn main() {
 	    }
 	    res.sort_by_key(|k| (k.0.clone(), k.1.clone()));
 
-	    panaani::single_linkage_cluster2(&res, seq_names.len());
+	    clust::single_linkage_cluster2(&res, seq_names.len());
 	}
 	None => {}
     }
