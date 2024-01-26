@@ -73,7 +73,7 @@ fn main() {
 
 	// Calculate distances between some input fasta files
 	Some(Commands::Dist { seq_files }) => {
-	    let results = dist::ani_from_fastx_files(seq_files);
+	    let results = dist::ani_from_fastx_files(seq_files, &dist::SkaniParams::default());
 	    for res in results {
 		println!("{}\t{}\t{}\t{}\t{}",
 			 res.ref_file,

@@ -13,7 +13,7 @@ mod dist;
 pub fn dereplicate_iter(old_clusters: Vec<(String, String)>, out_prefix: &String, instance: &ggcat_api::GGCATInstance) -> Vec<(String, String)> {
     println!("Calculating ANIs...");
     let fastx_files = old_clusters.iter().map(|x| x.1.clone()).unique().collect();
-    let ani_result = dist::ani_from_fastx_files(&fastx_files);
+    let ani_result = dist::ani_from_fastx_files(&fastx_files, &dist::SkaniParams::default());
 
     println!("Building dendrogram...");
     let clusters = clust::single_linkage_cluster(&ani_result, fastx_files.len());
