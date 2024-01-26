@@ -7,12 +7,9 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 //
 use std::collections::HashSet;
-use std::path::PathBuf;
 
 use clap::{Parser, Subcommand};
 use itertools::Itertools;
-
-use ggcat_api::{GGCATConfig,GGCATInstance};
 
 pub mod build;
 pub mod clust;
@@ -88,16 +85,7 @@ fn main() {
 	// Build a de Bruijn graph from some input fasta files
 	Some(Commands::Build { seq_files  }) => {
 	    let ggcat_inputs = build::open_ggcat_inputs(seq_files);
-	    let instance = GGCATInstance::create(GGCATConfig {
-		temp_dir: Some(PathBuf::from("./")),
-		memory: 2.0,
-		prefer_memory: true,
-		total_threads_count: 4,
-		intermediate_compression_level: None,
-		stats_file: None,
-	    });
-
-	    build::build_pangenome_graph(ggcat_inputs, seq_files, &("out".to_string() + ".dbg.fasta"), instance);
+	    build::build_pangenome_graph(ggcat_inputs, seq_files, &("out".to_string() + ".dbg.fasta"), &build::GGCATParams::default());
 	}
 
 	// Cluster distance data created with `skani dist` or `panaani dist`.
