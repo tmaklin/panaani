@@ -7,10 +7,12 @@ mod build;
 pub mod clust;
 mod dist;
 
-pub fn dereplicate_iter(old_clusters: Vec<(String, String)>, out_prefix: &String) -> Vec<(String, String)> {
+pub fn dereplicate_iter(old_clusters: Vec<(String, String)>, out_prefix: &String,
+			skani_params: Option<dist::SkaniParams>, ggcat_params: Option<build::GGCATParams>)
+			-> Vec<(String, String)> {
     println!("Calculating ANIs...");
     let fastx_files = old_clusters.iter().map(|x| x.1.clone()).unique().collect();
-    let ani_result = dist::ani_from_fastx_files(&fastx_files, &dist::SkaniParams::default());
+    let ani_result = dist::ani_from_fastx_files(&fastx_files, &skani_params.unwrap_or(dist::SkaniParams::default()));
 
     println!("Building dendrogram...");
     let clusters = clust::single_linkage_cluster(&ani_result, fastx_files.len());
@@ -23,12 +25,14 @@ pub fn dereplicate_iter(old_clusters: Vec<(String, String)>, out_prefix: &String
 	.collect();
 
     println!("Building pangenome graphs...");
-    build::build_pangenome_representations(&new_clusters, &build::GGCATParams::default());
+    build::build_pangenome_representations(&new_clusters, &ggcat_params.unwrap_or(build::GGCATParams::default()));
 
     return new_clusters;
 }
 
-pub fn dereplicate(seq_files: &Vec<String>, initial_clusters: &Vec<String>, batch_step: &usize) -> Vec<(String, String)> {
+pub fn dereplicate(seq_files: &Vec<String>, initial_clusters: &Vec<String>, batch_step: &usize,
+		   skani_params: Option<dist::SkaniParams>, ggcat_params: Option<build::GGCATParams>)
+		   -> Vec<(String, String)> {
     let mut iter = 0;
     let mut iter_inputs: Vec<(String, String)> = seq_files.iter().cloned().zip(initial_clusters.iter().cloned()).collect();
 
@@ -38,7 +42,8 @@ pub fn dereplicate(seq_files: &Vec<String>, initial_clusters: &Vec<String>, batc
 	// horrible hack to use random file names within each batch
 	iter_inputs = iter_inputs
 	    .chunks((iter + 1)*batch_step)
-	    .map(|x| dereplicate_iter(Vec::from(x), &(iter.to_string() + "_" + &(rng.gen::<u64>() as u64).to_string() + "-" )))
+		    .map(|x| dereplicate_iter(Vec::from(x), &(iter.to_string() + "_" + &(rng.gen::<u64>() as u64).to_string() + "-" ),
+		    skani_params.clone(), ggcat_params.clone()))
 	    .flatten()
 	    .collect();
 
@@ -46,7 +51,7 @@ pub fn dereplicate(seq_files: &Vec<String>, initial_clusters: &Vec<String>, batc
 	iter += 1;
     }
 
-    let final_clusters = dereplicate_iter(iter_inputs, &"panANI-".to_string());
+    let final_clusters = dereplicate_iter(iter_inputs, &"panANI-".to_string(), skani_params, ggcat_params);
 
     return final_clusters;
 }

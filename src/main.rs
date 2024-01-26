@@ -59,7 +59,7 @@ fn main() {
 		.unwrap();
 	    let batch_step = 50;
 
-	    let clusters = panaani::dereplicate(&seq_files, &seq_files, &batch_step);
+	    let clusters = panaani::dereplicate(&seq_files, &seq_files, &batch_step, None, None);
 	    let n_clusters = clusters.iter().map(|x| x.1.clone()).unique().collect::<Vec<String>>().len();
 
 	    println!("Created {} clusters", n_clusters);
