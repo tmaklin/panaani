@@ -30,7 +30,23 @@ pub fn dereplicate_iter(
     let ani_result = dist::ani_from_fastx_files(
         &fastx_files,
         &skani_params.unwrap_or(dist::SkaniParams::default()),
-    );
+    )
+    .iter()
+    .cloned()
+    .map(|x| {
+        (
+            x.ref_file,
+            x.query_file,
+            if x.ani > 0.0 && x.ani < 1.0 && !x.ani.is_nan() {
+                1.0 - x.ani
+            } else {
+                1.0
+            },
+            x.align_fraction_ref,
+            x.align_fraction_query,
+        )
+    })
+    .collect();
 
     println!("Building dendrogram...");
     let clusters = clust::single_linkage_cluster(

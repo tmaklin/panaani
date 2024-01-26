@@ -290,7 +290,7 @@ fn main() {
             }
             res.sort_by_key(|k| (k.0.clone(), k.1.clone()));
 
-            clust::single_linkage_cluster2(&res, seq_names.len(), clust::KodamaParams::default());
+            clust::single_linkage_cluster(&res, seq_names.len(), clust::KodamaParams::default());
         }
         None => {}
     }
