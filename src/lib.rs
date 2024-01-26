@@ -5,20 +5,16 @@ use rand::Rng;
 
 pub mod build;
 pub mod clust;
-mod dist;
+pub mod dist;
 
 #[derive(Clone)]
 pub struct PanaaniParams {
     pub batch_step: usize,
-    pub ani_threshold: f32,
 }
 
 impl Default for PanaaniParams {
     fn default() -> PanaaniParams {
-        PanaaniParams {
-            batch_step: 50,
-            ani_threshold: 0.97,
-        }
+        PanaaniParams { batch_step: 50 }
     }
 }
 
