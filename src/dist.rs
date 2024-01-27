@@ -1,3 +1,11 @@
+// panaani: Pangenome-aware dereplication of bacterial genomes into ANI clusters
+//
+// Copyright (c) Tommi Mäklin <tommi 'at' maklin.fi>
+//
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+//
 use std::sync::mpsc::channel;
 
 use itertools::Itertools;
@@ -40,15 +48,15 @@ impl Default for SkaniParams {
     }
 }
 
-fn compare_fastx_files(
-    reference: &String,
-    query: &String,
-    params: &SkaniParams,
-) -> skani::types::AniEstResult {
+pub fn ani_from_fastx_files(
+    fastx_files: &Vec<String>,
+    skani_params: &SkaniParams,
+) -> Vec<skani::types::AniEstResult> {
+
     let sketch_params = skani::params::SketchParams::new(
-        params.marker_compression_factor as usize,
-        params.kmer_subsampling_rate as usize,
-        params.kmer_size as usize,
+        skani_params.marker_compression_factor as usize,
+        skani_params.kmer_subsampling_rate as usize,
+        skani_params.kmer_size as usize,
         false,
         false,
     );
@@ -61,58 +69,47 @@ fn compare_fastx_files(
         query_files: vec![],
         refs_are_sketch: false,
         queries_are_sketch: false,
-        robust: params.clip_tails,
-        median: params.median,
+        robust: skani_params.clip_tails,
+        median: skani_params.median,
         sparse: false,
         full_matrix: false,
         max_results: 10000000,
         individual_contig_q: false,
         individual_contig_r: false,
-        min_aligned_frac: params.min_aligned_frac,
+        min_aligned_frac: skani_params.min_aligned_frac,
         keep_refs: false,
-        est_ci: params.bootstrap_ci,
-        learned_ani: params.adjust_ani,
+        est_ci: skani_params.bootstrap_ci,
+        learned_ani: skani_params.adjust_ani,
         detailed_out: false,
-        rescue_small: params.rescue_small,
+        rescue_small: skani_params.rescue_small,
         distance: true,
     };
 
     let sketches = skani::file_io::fastx_to_sketches(
-        &vec![reference.clone(), query.clone()],
+        &fastx_files,
         &sketch_params,
         true,
     );
     let adjust_ani = skani::regression::get_model(sketch_params.c, false);
-    let map_params = skani::chain::map_params_from_sketch(
-        sketches.first().unwrap(),
-        false,
-        &cmd_params,
-        &adjust_ani,
-    );
-    return skani::chain::chain_seeds(
-        sketches.first().unwrap(),
-        sketches.last().unwrap(),
-        map_params,
-    );
-}
 
-pub fn ani_from_fastx_files(
-    fastx_files: &Vec<String>,
-    skani_params: &SkaniParams,
-) -> Vec<skani::types::AniEstResult> {
     let (sender, receiver) = channel();
-    fastx_files
+    sketches
         .iter()
         .cloned()
         .combinations(2)
         .par_bridge()
         .for_each_with(sender, |s, pair| {
-            let _ = s.send(compare_fastx_files(
-                pair.first().unwrap(),
-                pair.last().unwrap(),
-                skani_params,
+            let _ = s.send(skani::chain::chain_seeds(
+		pair.first().unwrap(),
+		pair.last().unwrap(),
+		skani::chain::map_params_from_sketch(
+		    pair.first().unwrap(),
+		    false,
+		    &cmd_params,
+		    &adjust_ani)
             ));
         });
+
     let mut ani_result: Vec<skani::types::AniEstResult> = receiver.iter().collect();
 
     // Ensure output order is same regardless of parallelization
