@@ -1,5 +1,15 @@
+// panaani: Pangenome-aware dereplication of bacterial genomes into ANI clusters
+//
+// Copyright (c) Tommi Mäklin <tommi 'at' maklin.fi>
+//
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+//
 use std::collections::HashMap;
 use std::path::PathBuf;
+
+use log::info;
 
 use ggcat_api::{GGCATConfig, GGCATInstance};
 
@@ -52,6 +62,8 @@ fn build_pangenome_graph(
     prefix: &String,
     params: &GGCATParams,
 ) {
+
+    let shh = shh::stdout().unwrap();
     let instance = GGCATInstance::create(GGCATConfig {
         temp_dir: Some(PathBuf::from(params.temp_dir_path.clone())),
         memory: params.memory as f64,
@@ -62,6 +74,7 @@ fn build_pangenome_graph(
     });
 
     let graph_file = PathBuf::from(prefix.to_owned());
+
     instance.build_graph(
         inputs,
         graph_file,
@@ -74,6 +87,7 @@ fn build_pangenome_graph(
         params.kmer_min_multiplicity as usize,
         params.unitig_type,
     );
+    drop(shh);
 }
 
 fn open_ggcat_inputs(seq_files: &Vec<String>) -> Vec<ggcat_api::GeneralSequenceBlockData> {
@@ -102,7 +116,7 @@ pub fn build_pangenome_representations(seq_files: &Vec<(String, String)>, params
     }
 
     for (graph_name, files) in files_in_cluster {
-        println!("Building graph {}...", graph_name);
+        info!("Building graph {}...", graph_name);
         let mut ggcat_input_names: Vec<String> = Vec::new();
         for file in files {
             ggcat_input_names.push(file);
