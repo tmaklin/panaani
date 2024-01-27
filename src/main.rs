@@ -30,6 +30,7 @@ enum Commands {
         #[arg(group = "input", required = true)]
         seq_files: Vec<String>,
 
+
         // Resources
         #[arg(short = 't', long = "threads", default_value_t = 1)]
         threads: u32,
@@ -44,58 +45,61 @@ enum Commands {
         #[arg(short = 'b', long = "batch-step", default_value_t = 50)]
         batch_step: usize,
 
-        // Clustering parameters
-        #[arg(long = "ani-threshold", default_value_t = 0.97)]
-        ani_threshold: f32,
-
-        #[arg(long = "linkage-method", required = false)]
-        linkage_method: Option<String>,
 
         // ANI estimation parameters
-        #[arg(long = "skani-kmer-size", default_value_t = 15)]
+        #[arg(long = "skani-kmer-size", default_value_t = 15, help_heading = "ANI estimation")]
         skani_kmer_size: u8,
 
-        #[arg(long = "kmer-subsampling-rate", default_value_t = 30)]
+        #[arg(long = "kmer-subsampling-rate", default_value_t = 30, help_heading = "ANI estimation")]
         kmer_subsampling_rate: u16,
 
-        #[arg(long = "marker-compression-factor", default_value_t = 1000)]
+        #[arg(long = "marker-compression-factor", default_value_t = 1000, help_heading = "ANI estimation")]
         marker_compression_factor: u16,
 
-        #[arg(long = "rescue-small", default_value_t = false)]
+        #[arg(long = "rescue-small", default_value_t = false, help_heading = "ANI estimation")]
         rescue_small: bool,
 
-        #[arg(long = "clip-tails", default_value_t = false)]
+        #[arg(long = "clip-tails", default_value_t = false, help_heading = "ANI estimation")]
         clip_tails: bool,
 
-        #[arg(long = "median", default_value_t = false)]
+        #[arg(long = "median", default_value_t = false, help_heading = "ANI estimation")]
         median: bool,
 
-        #[arg(long = "adjust-ani", default_value_t = false)]
+        #[arg(long = "adjust-ani", default_value_t = false, help_heading = "ANI estimation")]
         adjust_ani: bool,
 
-        #[arg(long = "min-af", default_value_t = 0.)]
+        #[arg(long = "min-af", default_value_t = 0.0, help_heading = "ANI estimation")]
         min_aligned_frac: f64,
 
-        // de Bruijn graph construction parameters
-        #[arg(long = "ggcat-kmer-size", default_value_t = 51)]
+
+	// Clustering parameters
+        #[arg(long = "ani-threshold", default_value_t = 0.97, help_heading = "ANI clustering")]
+        ani_threshold: f32,
+
+        #[arg(long = "linkage-method", required = false, help_heading = "ANI clustering")]
+        linkage_method: Option<String>,
+
+
+	// de Bruijn graph construction parameters
+        #[arg(long = "ggcat-kmer-size", default_value_t = 51, help_heading = "Pangenome construction")]
         ggcat_kmer_size: u32,
 
-        #[arg(long = "min-kmer-count", default_value_t = 1)]
+        #[arg(long = "min-kmer-count", default_value_t = 1, help_heading = "Pangenome construction")]
         kmer_min_multiplicity: u64,
 
-        #[arg(long = "minimzer-length", required = false)]
+        #[arg(long = "minimzer-length", required = false, help_heading = "Pangenome construction")]
         minimizer_length: Option<usize>,
 
-        #[arg(long = "no-rc", default_value_t = false)]
+        #[arg(long = "no-rc", default_value_t = false, help_heading = "Pangenome construction")]
         no_reverse_complement: bool,
 
-        #[arg(long = "unitig-type", required = false)]
+        #[arg(long = "unitig-type", required = false, help_heading = "Pangenome construction")]
         unitig_type: Option<String>,
 
-        #[arg(long = "prefer-memory", default_value_t = true)]
+        #[arg(long = "prefer-memory", default_value_t = true, help_heading = "Pangenome construction")]
         prefer_memory: bool,
 
-        #[arg(long = "intermediate-compression", required = false)]
+        #[arg(long = "intermediate-compression", required = false, help_heading = "Pangenome construction")]
         intermediate_compression_level: Option<u32>,
     },
 
