@@ -33,13 +33,12 @@ pub enum Commands {
         #[arg(long = "tmp-dir", required = false)]
         temp_dir_path: Option<String>,
 
-	#[arg(long = "verbose", default_value_t = false)]
-        verbose: bool,
-
-
         // Dereplicate parameters
         #[arg(short = 'b', long = "batch-step", default_value_t = 50)]
         batch_step: usize,
+
+	#[arg(long = "verbose", default_value_t = false)]
+        verbose: bool,
 
         // ANI estimation parameters
         #[arg(
