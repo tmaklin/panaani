@@ -10,14 +10,31 @@ use std::collections::HashSet;
 
 use clap::Parser;
 use itertools::Itertools;
+use log::{info, Record, Level, LevelFilter, Metadata};
 
 mod build;
 mod cli;
 mod clust;
 mod dist;
 
+struct Logger;
+
+impl log::Log for Logger {
+    fn enabled(&self, metadata: &Metadata) -> bool {
+        metadata.level() <= Level::Info
+    }
+
+    fn log(&self, record: &Record) {
+        if self.enabled(record.metadata()) {
+            println!("{} - {}", record.level(), record.args());
+        }
+    }
+
+    fn flush(&self) {}
+}
+
 fn main() {
-    println!("panaani: Pangenome-aware dereplication of bacterial genomes into ANI clusters");
+    static LOG: Logger = Logger;
     let cli = cli::Cli::parse();
 
     // Subcommands:
@@ -46,7 +63,9 @@ fn main() {
             memory,
             temp_dir_path,
             ani_threshold,
+	    verbose
         }) => {
+	    let _ = log::set_logger(&LOG).map(|()| log::set_max_level(if *verbose { LevelFilter::Info } else { LevelFilter::Warn } ));
             rayon::ThreadPoolBuilder::new()
                 .num_threads(*threads as usize)
                 .thread_name(|i| format!("rayon-thread-{}", i))
@@ -137,7 +156,7 @@ fn main() {
                 .collect::<Vec<String>>()
                 .len();
 
-            println!("Created {} clusters", n_clusters);
+            info!("Created {} clusters", n_clusters);
             for cluster in clusters {
                 println!("{}\t{}", cluster.0, cluster.1);
             }
@@ -155,7 +174,9 @@ fn main() {
             median,
             adjust_ani,
             min_aligned_frac,
+	    verbose
         }) => {
+	    let _ = log::set_logger(&LOG).map(|()| log::set_max_level(if *verbose { LevelFilter::Info } else { LevelFilter::Warn } ));
             rayon::ThreadPoolBuilder::new()
                 .num_threads(*threads as usize)
                 .thread_name(|i| format!("rayon-thread-{}", i))
@@ -204,7 +225,9 @@ fn main() {
             unitig_type,
             prefer_memory,
             intermediate_compression_level,
+	    verbose
         }) => {
+	    let _ = log::set_logger(&LOG).map(|()| log::set_max_level(if *verbose { LevelFilter::Info } else { LevelFilter::Warn } ));
             let ggcat_params = build::GGCATParams {
                 kmer_size: *ggcat_kmer_size,
                 kmer_min_multiplicity: *kmer_min_multiplicity,
@@ -252,7 +275,9 @@ fn main() {
             dist_file,
             ani_threshold,
             linkage_method,
+	    verbose
         }) => {
+	    let _ = log::set_logger(&LOG).map(|()| log::set_max_level(if *verbose { LevelFilter::Info } else { LevelFilter::Warn } ));
             let kodama_params = clust::KodamaParams {
                 cutoff: *ani_threshold,
                 method: if linkage_method.is_some() {

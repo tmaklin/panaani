@@ -33,6 +33,10 @@ pub enum Commands {
         #[arg(long = "tmp-dir", required = false)]
         temp_dir_path: Option<String>,
 
+	#[arg(long = "verbose", default_value_t = false)]
+        verbose: bool,
+
+
         // Dereplicate parameters
         #[arg(short = 'b', long = "batch-step", default_value_t = 50)]
         batch_step: usize,
@@ -169,6 +173,10 @@ pub enum Commands {
         #[arg(short = 't', long = "threads", default_value_t = 1)]
         threads: u32,
 
+	#[arg(long = "verbose", default_value_t = false)]
+        verbose: bool,
+
+
         // ANI estimation parameters
         #[arg(long = "skani-kmer-size", default_value_t = 15)]
         skani_kmer_size: u8,
@@ -212,6 +220,10 @@ pub enum Commands {
         #[arg(long = "tmp-dir", required = false)]
         temp_dir_path: Option<String>,
 
+	#[arg(long = "verbose", default_value_t = false)]
+        verbose: bool,
+
+
         // de Bruijn graph construction parameters
         #[arg(long = "ggcat-kmer-size", default_value_t = 51)]
         ggcat_kmer_size: u32,
@@ -237,6 +249,10 @@ pub enum Commands {
     Cluster {
         #[arg(group = "input")]
         dist_file: String,
+
+	#[arg(long = "verbose", default_value_t = false)]
+        verbose: bool,
+
 
         // Clustering parameters
         #[arg(long = "ani-threshold", default_value_t = 0.97)]

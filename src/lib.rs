@@ -1,6 +1,15 @@
+// panaani: Pangenome-aware dereplication of bacterial genomes into ANI clusters
+//
+// Copyright (c) Tommi Mäklin <tommi 'at' maklin.fi>
+//
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+//
 use std::collections::HashMap;
 
 use itertools::Itertools;
+use log::info;
 use rand::Rng;
 
 pub mod build;
@@ -25,7 +34,7 @@ pub fn dereplicate_iter(
     kodama_params: Option<clust::KodamaParams>,
     ggcat_params: Option<build::GGCATParams>,
 ) -> Vec<(String, String)> {
-    println!("Calculating ANIs...");
+    info!("Calculating ANIs...");
     let fastx_files = old_clusters.iter().map(|x| x.1.clone()).unique().collect();
     let ani_result = dist::ani_from_fastx_files(
         &fastx_files,
@@ -48,7 +57,7 @@ pub fn dereplicate_iter(
     })
     .collect();
 
-    println!("Building dendrogram...");
+    info!("Building dendrogram...");
     let clusters = clust::single_linkage_cluster(
         &ani_result,
         kodama_params.unwrap_or(clust::KodamaParams::default()),
@@ -74,7 +83,7 @@ pub fn dereplicate_iter(
         })
         .collect();
 
-    println!("Building pangenome graphs...");
+    info!("Building pangenome graphs...");
     build::build_pangenome_representations(
         &new_clusters,
         &ggcat_params.unwrap_or(build::GGCATParams::default()),
