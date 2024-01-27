@@ -46,7 +46,7 @@ impl Default for GGCATParams {
     }
 }
 
-pub fn build_pangenome_graph(
+fn build_pangenome_graph(
     inputs: Vec<ggcat_api::GeneralSequenceBlockData>,
     input_seq_names: &Vec<String>,
     prefix: &String,
@@ -76,7 +76,7 @@ pub fn build_pangenome_graph(
     );
 }
 
-pub fn open_ggcat_inputs(seq_files: &Vec<String>) -> Vec<ggcat_api::GeneralSequenceBlockData> {
+fn open_ggcat_inputs(seq_files: &Vec<String>) -> Vec<ggcat_api::GeneralSequenceBlockData> {
     let mut ggcat_inputs: Vec<ggcat_api::GeneralSequenceBlockData> = Vec::new();
     for file in seq_files {
         ggcat_inputs.push(ggcat_api::GeneralSequenceBlockData::FASTA((

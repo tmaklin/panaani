@@ -14,7 +14,7 @@ impl Default for KodamaParams {
     }
 }
 
-pub fn cut_dendrogram(dendr: &kodama::Dendrogram<f32>, height: f32) -> Vec<usize> {
+fn cut_dendrogram(dendr: &kodama::Dendrogram<f32>, height: f32) -> Vec<usize> {
     let cutoff = 1.0 - height;
     let num_seqs = dendr.observations();
     let num_nodes = 2 * num_seqs - 1;

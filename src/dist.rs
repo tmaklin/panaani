@@ -40,7 +40,7 @@ impl Default for SkaniParams {
     }
 }
 
-pub fn compare_fastx_files(
+fn compare_fastx_files(
     reference: &String,
     query: &String,
     params: &SkaniParams,
