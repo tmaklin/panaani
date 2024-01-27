@@ -138,6 +138,9 @@ enum Commands {
         #[arg(group = "input", required = true)]
         seq_files: Vec<String>,
 
+	#[arg(long = "external-clustering", required = true)]
+        external_clusters: Vec<String>,
+
         // Resources
         #[arg(short = 't', long = "threads", default_value_t = 1)]
         threads: u32,
@@ -357,9 +360,10 @@ fn main() {
             }
         }
 
-        // Build a de Bruijn graph from some input fasta files
+        // Build pangenome representations from input fasta files and their clusters
         Some(Commands::Build {
             seq_files,
+	    external_clusters,
             threads,
             memory,
             temp_dir_path,
@@ -403,12 +407,8 @@ fn main() {
                 ..Default::default()
             };
 
-            let ggcat_inputs = build::open_ggcat_inputs(seq_files);
-
-            build::build_pangenome_graph(
-                ggcat_inputs,
-                seq_files,
-                &("out".to_string() + ".dbg.fasta"),
+            build::build_pangenome_representations(
+                &seq_files.iter().cloned().zip(external_clusters.iter().cloned()).collect(),
                 &ggcat_params,
             );
         }
