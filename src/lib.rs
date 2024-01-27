@@ -77,7 +77,7 @@ pub fn dereplicate_iter(
             (
                 x.0.clone(),
                 out_prefix.to_owned()
-                    + &old_cluster_to_new_cluster.get(&x.1).unwrap().to_string()
+                    + &old_cluster_to_new_cluster.get(&x.1).unwrap_or_else(|| { panic!("A fasta/fastq failed skani sketching!\nCheck log for records containing the message: 'WARN - File <path> is not a valid fasta/fastq file'.") } ).to_string()
                     + ".dbg.fasta",
             )
         })
