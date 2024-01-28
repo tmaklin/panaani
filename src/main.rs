@@ -63,7 +63,8 @@ fn main() {
             memory,
             temp_dir_path,
             ani_threshold,
-	    verbose
+	    verbose,
+	    max_iters,
         }) => {
 	    let _ = log::set_logger(&LOG).map(|()| log::set_max_level(if *verbose { LevelFilter::Info } else { LevelFilter::Warn } ));
             rayon::ThreadPoolBuilder::new()
@@ -74,6 +75,7 @@ fn main() {
 
             let params: panaani::PanaaniParams = panaani::PanaaniParams {
                 batch_step: *batch_step,
+		max_iters: *max_iters,
             };
 
             let skani_params = panaani::dist::SkaniParams {

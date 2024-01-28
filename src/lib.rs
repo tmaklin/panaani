@@ -19,11 +19,12 @@ pub mod dist;
 #[derive(Clone)]
 pub struct PanaaniParams {
     pub batch_step: usize,
+    pub max_iters: usize,
 }
 
 impl Default for PanaaniParams {
     fn default() -> PanaaniParams {
-        PanaaniParams { batch_step: 50 }
+        PanaaniParams { batch_step: 50, max_iters: 10 }
     }
 }
 
@@ -110,7 +111,7 @@ pub fn dereplicate(
         .collect();
 
     let mut n_remaining: usize = seq_files.len();
-    while (iter + 1) * my_params.batch_step < n_remaining {
+    while (iter + 1) * my_params.batch_step < n_remaining && iter < my_params.max_iters {
         let mut rng = rand::thread_rng();
 
         // horrible hack to use random file names within each batch

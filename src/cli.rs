@@ -37,6 +37,9 @@ pub enum Commands {
         #[arg(short = 'b', long = "batch-step", default_value_t = 50)]
         batch_step: usize,
 
+	#[arg(long = "max-iters", default_value_t = 10)]
+	max_iters: usize,
+
 	#[arg(long = "verbose", default_value_t = false)]
         verbose: bool,
 
