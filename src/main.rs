@@ -204,11 +204,11 @@ fn main() {
             for res in results {
                 println!(
                     "{}\t{}\t{}\t{}\t{}",
-                    res.ref_file,
-                    res.query_file,
-                    res.ani,
-                    res.align_fraction_ref,
-                    res.align_fraction_query
+                    res.0,
+                    res.1,
+                    res.2,
+                    res.3,
+                    res.4
                 );
             }
         }

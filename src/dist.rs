@@ -6,6 +6,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 //
+use std::cmp::Ordering;
 use std::sync::mpsc::channel;
 
 use itertools::Itertools;
@@ -51,8 +52,7 @@ impl Default for SkaniParams {
 pub fn ani_from_fastx_files(
     fastx_files: &Vec<String>,
     skani_params: &SkaniParams,
-) -> Vec<skani::types::AniEstResult> {
-
+) -> Vec<(String, String, f32, f32, f32)> {
     let sketch_params = skani::params::SketchParams::new(
         skani_params.marker_compression_factor as usize,
         skani_params.kmer_subsampling_rate as usize,
@@ -85,34 +85,48 @@ pub fn ani_from_fastx_files(
         distance: true,
     };
 
-    let sketches = skani::file_io::fastx_to_sketches(
-        &fastx_files,
-        &sketch_params,
-        true,
-    );
+    let sketches = skani::file_io::fastx_to_sketches(&fastx_files.iter().map(|x| x.clone()).collect(), &sketch_params, true);
     let adjust_ani = skani::regression::get_model(sketch_params.c, false);
 
     let (sender, receiver) = channel();
     sketches
         .iter()
-        .cloned()
         .combinations(2)
         .par_bridge()
         .for_each_with(sender, |s, pair| {
             let _ = s.send(skani::chain::chain_seeds(
-		pair.first().unwrap(),
-		pair.last().unwrap(),
-		skani::chain::map_params_from_sketch(
-		    pair.first().unwrap(),
-		    false,
-		    &cmd_params,
-		    &adjust_ani)
+                pair.first().unwrap(),
+                pair.last().unwrap(),
+                skani::chain::map_params_from_sketch(
+                    pair.first().unwrap(),
+                    false,
+                    &cmd_params,
+                    &adjust_ani,
+                ),
             ));
         });
 
-    let mut ani_result: Vec<skani::types::AniEstResult> = receiver.iter().collect();
+    let ani_result: Vec<(String, String, f32, f32, f32)> = receiver
+        .iter()
+        .sorted_by(|k1, k2| match k1.ref_file.cmp(&k2.ref_file) {
+            Ordering::Equal => k1.query_file.cmp(&k2.query_file),
+            other => other,
+        })
+	.map(|x| {
+            (
+		x.ref_file,
+		x.query_file,
+		if x.ani > 0.0 && x.ani < 1.0 && !x.ani.is_nan() {
+                    1.0 - x.ani
+		} else {
+                    1.0
+		},
+		x.align_fraction_ref,
+		x.align_fraction_query,
+            )
+	})
+        .collect();
 
     // Ensure output order is same regardless of parallelization
-    ani_result.sort_by_key(|k| (k.ref_file.clone(), k.query_file.clone()));
     return ani_result;
 }
