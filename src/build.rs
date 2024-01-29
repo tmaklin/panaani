@@ -9,7 +9,16 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
 
+use parallel_processor::enable_counters_logging;
+use parallel_processor::memory_data_size::MemoryDataSize;
+use parallel_processor::memory_fs::MemoryFs;
+use parallel_processor::phase_times_monitor::PHASES_TIMES_MONITOR;
+use std::cmp::max;
+use std::fs::create_dir_all;
+use std::sync::atomic::Ordering;
+use std::time::Duration;
 use log::info;
+use log::warn;
 
 use ggcat_api::{GGCATConfig, GGCATInstance};
 
@@ -65,19 +74,48 @@ fn open_ggcat_inputs(seq_files: &[String]) -> Vec<ggcat_api::GeneralSequenceBloc
 }
 
 fn build_pangenome_graph(input_seq_names: &[String], prefix: &String, params: &GGCATParams) {
-    let inputs = open_ggcat_inputs(input_seq_names);
-    let shh = shh::stdout().unwrap();
-    let instance = GGCATInstance::create(GGCATConfig {
+    info!("Building graph {} from {} sequences...", prefix, input_seq_names.len());
+
+    let config = GGCATConfig {
         temp_dir: Some(PathBuf::from(params.temp_dir_path.clone())),
         memory: params.memory as f64,
-        prefer_memory: params.prefer_memory,
+        prefer_memory: false,
         total_threads_count: params.threads as usize,
         intermediate_compression_level: params.intermediate_compression_level,
         stats_file: params.stats_file.clone(),
-    });
+    };
+
+    // Increase the maximum allowed number of open files
+    if let Err(err) = fdlimit::raise_fd_limit() {
+        warn!("Failed to increase the maximum number of open files: {}", err);
+    }
+
+    ggcat_config::PREFER_MEMORY.store(false, Ordering::Relaxed);
+
+    if let Some(temp_dir) = &config.temp_dir {
+        create_dir_all(temp_dir).unwrap();
+    }
+
+    if let Some(stats_file) = &config.stats_file {
+        enable_counters_logging(stats_file, Duration::from_millis(1000), |val| {
+            val["phase"] = PHASES_TIMES_MONITOR.read().get_phase_desc().into();
+        });
+    }
+
+    MemoryFs::init(
+        MemoryDataSize::from_bytes(
+            (config.memory * (MemoryDataSize::OCTET_GIBIOCTET_FACTOR as f64)) as usize,
+        ),
+        16 * config.total_threads_count,
+        max(1, config.total_threads_count / 4),
+        8192,
+    );
+
+    let instance = Some(Box::leak(Box::new(GGCATInstance(config)))).unwrap();
 
     let graph_file = PathBuf::from(prefix.to_owned());
 
+    let inputs = open_ggcat_inputs(input_seq_names);
     instance.build_graph(
         inputs,
         graph_file,
@@ -90,7 +128,6 @@ fn build_pangenome_graph(input_seq_names: &[String], prefix: &String, params: &G
         params.kmer_min_multiplicity as usize,
         params.unitig_type,
     );
-    drop(shh);
 }
 
 pub fn build_pangenome_representations(seq_files: &[(String, String)], params: &GGCATParams) {
