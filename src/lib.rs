@@ -78,11 +78,11 @@ pub fn dereplicate_iter(
         kodama_params.unwrap_or(clust::KodamaParams::default()),
     );
 
-    let new_clusters: Vec<(String, String)> = match_clustering_results(&fastx_files, old_clusters, &clusters, out_prefix);
+    let mut new_clusters: Vec<(String, String)> = match_clustering_results(&fastx_files, old_clusters, &clusters, out_prefix);
 
     info!("Building pangenome graphs...");
     build::build_pangenome_representations(
-        &new_clusters,
+        &mut new_clusters,
         &ggcat_params.unwrap_or(build::GGCATParams::default()),
     );
 
