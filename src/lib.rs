@@ -28,8 +28,38 @@ impl Default for PanaaniParams {
     }
 }
 
+fn match_clustering_results(fastx_files: &[String],
+			    old_clusters: &[(String, String)],
+			    res_clusters: &[usize],
+			    out_prefix: &String)
+-> Vec<(String, String)> {
+
+    let mut old_cluster_to_new_cluster: HashMap<&String, usize> = HashMap::new();
+    fastx_files
+        .iter()
+        .sorted()
+        .zip(res_clusters.iter())
+        .for_each(|x| {
+            old_cluster_to_new_cluster.insert(x.0, x.1.clone());
+        });
+
+    let new_clusters: Vec<(String, String)> = old_clusters
+        .iter()
+        .map(|x| {
+            (
+                x.0.clone(),
+                out_prefix.to_owned()
+                    + &old_cluster_to_new_cluster.get(&x.1).unwrap_or_else(|| { panic!("A fasta/fastq failed skani sketching!\nCheck log for records containing the message: 'WARN - File <path> is not a valid fasta/fastq file'.") } ).to_string()
+                    + ".dbg.fasta",
+            )
+        })
+        .collect();
+
+    return new_clusters;
+}
+
 pub fn dereplicate_iter(
-    old_clusters: Vec<(String, String)>,
+    old_clusters: &[(String, String)],
     out_prefix: &String,
     skani_params: Option<dist::SkaniParams>,
     kodama_params: Option<clust::KodamaParams>,
@@ -48,25 +78,7 @@ pub fn dereplicate_iter(
         kodama_params.unwrap_or(clust::KodamaParams::default()),
     );
 
-    let mut old_cluster_to_new_cluster: HashMap<String, usize> = HashMap::new();
-    fastx_files
-        .iter()
-        .sorted()
-        .zip(clusters.iter())
-        .for_each(|x| {
-            old_cluster_to_new_cluster.insert(x.0.clone(), x.1.clone());
-        });
-    let new_clusters: Vec<(String, String)> = old_clusters
-        .iter()
-        .map(|x| {
-            (
-                x.0.clone(),
-                out_prefix.to_owned()
-                    + &old_cluster_to_new_cluster.get(&x.1).unwrap_or_else(|| { panic!("A fasta/fastq failed skani sketching!\nCheck log for records containing the message: 'WARN - File <path> is not a valid fasta/fastq file'.") } ).to_string()
-                    + ".dbg.fasta",
-            )
-        })
-        .collect();
+    let new_clusters: Vec<(String, String)> = match_clustering_results(&fastx_files, old_clusters, &clusters, out_prefix);
 
     info!("Building pangenome graphs...");
     build::build_pangenome_representations(
@@ -78,8 +90,8 @@ pub fn dereplicate_iter(
 }
 
 pub fn dereplicate(
-    seq_files: &Vec<String>,
-    initial_clusters: &Vec<String>,
+    seq_files: &[String],
+    initial_clusters: &[String],
     dereplicate_params: Option<PanaaniParams>,
     skani_params: Option<dist::SkaniParams>,
     kodama_params: Option<clust::KodamaParams>,
@@ -103,7 +115,7 @@ pub fn dereplicate(
             .chunks((iter + 1) * my_params.batch_step)
             .map(|x| {
                 dereplicate_iter(
-                    Vec::from(x),
+                    &Vec::from(x),
                     &(iter.to_string() + "_" + &(rng.gen::<u64>() as u64).to_string() + "-"),
                     skani_params.clone(),
                     kodama_params.clone(),
@@ -123,7 +135,7 @@ pub fn dereplicate(
     }
 
     let final_clusters = dereplicate_iter(
-        iter_inputs,
+        &iter_inputs,
         &"panANI-".to_string(),
         skani_params,
         kodama_params,
