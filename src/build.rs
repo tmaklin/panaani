@@ -36,7 +36,6 @@ pub struct GGCATParams {
     // Resources
     pub threads: u32,
     pub memory: u32,
-    pub prefer_memory: bool,
     pub temp_dir_path: String,
 
     // Intermediate outputs
@@ -56,7 +55,6 @@ impl Default for GGCATParams {
 
             threads: 1,
             memory: 4,
-            prefer_memory: true,
             temp_dir_path: "/tmp".to_string(),
 
             intermediate_compression_level: None,

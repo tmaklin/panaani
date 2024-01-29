@@ -57,7 +57,6 @@ fn main() {
             minimizer_length,
             no_reverse_complement,
             unitig_type,
-            prefer_memory,
             intermediate_compression_level,
             threads,
             memory,
@@ -131,7 +130,6 @@ fn main() {
                 } else {
                     ggcat_api::ExtraElaboration::GreedyMatchtigs
                 },
-                prefer_memory: *prefer_memory,
                 intermediate_compression_level: if intermediate_compression_level.is_some() {
                     *intermediate_compression_level
                 } else {
@@ -225,7 +223,6 @@ fn main() {
             minimizer_length,
             no_reverse_complement,
             unitig_type,
-            prefer_memory,
             intermediate_compression_level,
 	    verbose
         }) => {
@@ -250,7 +247,6 @@ fn main() {
                 } else {
                     ggcat_api::ExtraElaboration::GreedyMatchtigs
                 },
-                prefer_memory: *prefer_memory,
                 intermediate_compression_level: if intermediate_compression_level.is_some() {
                     *intermediate_compression_level
                 } else {

@@ -152,13 +152,6 @@ pub enum Commands {
         unitig_type: Option<String>,
 
         #[arg(
-            long = "prefer-memory",
-            default_value_t = true,
-            help_heading = "Pangenome construction"
-        )]
-        prefer_memory: bool,
-
-        #[arg(
             long = "intermediate-compression",
             required = false,
             help_heading = "Pangenome construction"
@@ -241,9 +234,6 @@ pub enum Commands {
 
         #[arg(long = "unitig-type", required = false)]
         unitig_type: Option<String>,
-
-        #[arg(long = "prefer-memory", default_value_t = true)]
-        prefer_memory: bool,
 
         #[arg(long = "intermediate-compression", required = false)]
         intermediate_compression_level: Option<u32>,
