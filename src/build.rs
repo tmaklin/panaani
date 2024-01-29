@@ -56,13 +56,16 @@ impl Default for GGCATParams {
     }
 }
 
-fn build_pangenome_graph(
-    inputs: Vec<ggcat_api::GeneralSequenceBlockData>,
-    input_seq_names: &Vec<String>,
-    prefix: &String,
-    params: &GGCATParams,
-) {
+fn open_ggcat_inputs(seq_files: &[String]) -> Vec<ggcat_api::GeneralSequenceBlockData> {
+    let ggcat_inputs: Vec<ggcat_api::GeneralSequenceBlockData> = seq_files
+        .iter()
+        .map(|x| ggcat_api::GeneralSequenceBlockData::FASTA((PathBuf::from(x), None)))
+        .collect();
+    return ggcat_inputs;
+}
 
+fn build_pangenome_graph(input_seq_names: &[String], prefix: &String, params: &GGCATParams) {
+    let inputs = open_ggcat_inputs(input_seq_names);
     let shh = shh::stdout().unwrap();
     let instance = GGCATInstance::create(GGCATConfig {
         temp_dir: Some(PathBuf::from(params.temp_dir_path.clone())),
@@ -90,39 +93,18 @@ fn build_pangenome_graph(
     drop(shh);
 }
 
-fn open_ggcat_inputs(seq_files: &Vec<String>) -> Vec<ggcat_api::GeneralSequenceBlockData> {
-    let mut ggcat_inputs: Vec<ggcat_api::GeneralSequenceBlockData> = Vec::new();
-    for file in seq_files {
-        ggcat_inputs.push(ggcat_api::GeneralSequenceBlockData::FASTA((
-            PathBuf::from(file),
-            None,
-        )));
-    }
-    return ggcat_inputs;
-}
-
-pub fn build_pangenome_representations(seq_files: &Vec<(String, String)>, params: &GGCATParams) {
+pub fn build_pangenome_representations(seq_files: &[(String, String)], params: &GGCATParams) {
     let mut files_in_cluster: HashMap<String, Vec<String>> = HashMap::new();
 
-    for val in seq_files.iter() {
-        if files_in_cluster.contains_key(&val.1) {
-            files_in_cluster
-                .get_mut(&val.1)
-                .unwrap()
-                .push(val.0.clone());
+    seq_files.iter().for_each(|x| {
+        if files_in_cluster.contains_key(&x.1) {
+            files_in_cluster.get_mut(&x.1).unwrap().push(x.0.clone());
         } else {
-            files_in_cluster.insert(val.1.clone(), vec![val.0.clone()]);
+            files_in_cluster.insert(x.1.clone(), vec![x.0.clone()]);
         }
-    }
+    });
 
-    for (graph_name, files) in files_in_cluster {
-        info!("Building graph {}...", graph_name);
-        let mut ggcat_input_names: Vec<String> = Vec::new();
-        for file in files {
-            ggcat_input_names.push(file);
-        }
-
-        let ggcat_inputs = open_ggcat_inputs(&ggcat_input_names);
-        build_pangenome_graph(ggcat_inputs, &ggcat_input_names, &graph_name, params);
-    }
+    files_in_cluster
+        .iter()
+        .for_each(|x| build_pangenome_graph(x.1, x.0, params));
 }

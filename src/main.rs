@@ -267,7 +267,7 @@ fn main() {
                     .iter()
                     .cloned()
                     .zip(external_clusters.iter().cloned())
-                    .collect(),
+                    .collect::<Vec<(String, String)>>(),
                 &ggcat_params,
             );
         }
