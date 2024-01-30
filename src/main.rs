@@ -64,6 +64,7 @@ fn main() {
             ani_threshold,
 	    verbose,
 	    max_iters,
+	    batch_step_strategy,
         }) => {
 	    let _ = log::set_logger(&LOG).map(|()| log::set_max_level(if *verbose { LevelFilter::Info } else { LevelFilter::Warn } ));
             rayon::ThreadPoolBuilder::new()

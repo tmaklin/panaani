@@ -19,12 +19,17 @@ pub mod dist;
 #[derive(Clone)]
 pub struct PanaaniParams {
     pub batch_step: usize,
+    pub batch_step_strategy: String,
     pub max_iters: usize,
 }
 
 impl Default for PanaaniParams {
     fn default() -> PanaaniParams {
-        PanaaniParams { batch_step: 50, max_iters: 10 }
+        PanaaniParams {
+	    batch_step: 50,
+	    batch_step_strategy: "linear".to_string(),
+	    max_iters: 10,
+	}
     }
 }
 
@@ -106,13 +111,14 @@ pub fn dereplicate(
         .zip(initial_clusters.iter().cloned())
         .collect();
 
+    let mut batch_size = my_params.batch_step;
     let mut n_remaining: usize = seq_files.len();
-    while (iter + 1) * my_params.batch_step < n_remaining && iter < my_params.max_iters {
+    while batch_size < n_remaining && iter < my_params.max_iters {
         let mut rng = rand::thread_rng();
 
         // horrible hack to use random file names within each batch
         iter_inputs = iter_inputs
-            .chunks((iter + 1) * my_params.batch_step)
+            .chunks(batch_size)
             .map(|x| {
                 dereplicate_iter(
                     &Vec::from(x),
@@ -132,6 +138,11 @@ pub fn dereplicate(
             .collect::<Vec<String>>()
             .len();
         iter += 1;
+	match my_params.batch_step_strategy.as_str() {
+	    "linear" => batch_size += my_params.batch_step,
+	    "double" => batch_size *= 2,
+	    &_ => batch_size += my_params.batch_step
+	}
     }
 
     let final_clusters = dereplicate_iter(
