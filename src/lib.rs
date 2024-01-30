@@ -21,6 +21,7 @@ pub struct PanaaniParams {
     pub batch_step: usize,
     pub batch_step_strategy: String,
     pub max_iters: usize,
+    pub temp_dir: String,
 }
 
 impl Default for PanaaniParams {
@@ -29,7 +30,8 @@ impl Default for PanaaniParams {
 	    batch_step: 50,
 	    batch_step_strategy: "linear".to_string(),
 	    max_iters: 10,
-	}
+	    temp_dir: "./".to_string(),
+        }
     }
 }
 
@@ -120,7 +122,7 @@ pub fn dereplicate(
                 dereplicate_iter(
                     &x.0,
                     &x.1,
-                    &(iter.to_string() + "_" + &(rng.gen::<u64>() as u64).to_string() + "-"),
+                    &(my_params.temp_dir.to_string() + "/" + &iter.to_string() + "_" + &(rng.gen::<u64>() as u64).to_string() + "-"),
                     skani_params,
                     kodama_params,
                     ggcat_params,

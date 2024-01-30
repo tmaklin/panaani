@@ -77,6 +77,7 @@ fn main() {
                 batch_step: *batch_step,
                 batch_step_strategy: batch_step_strategy.clone(),
                 max_iters: *max_iters,
+		temp_dir: temp_dir_path.clone().unwrap_or("/tmp".to_string()),
             };
 
             let skani_params = panaani::dist::SkaniParams {
