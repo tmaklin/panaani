@@ -64,21 +64,21 @@ pub fn dereplicate_iter(
     seq_files: &[String],
     old_clusters: &[String],
     out_prefix: &String,
-    skani_params: Option<dist::SkaniParams>,
-    kodama_params: Option<clust::KodamaParams>,
-    ggcat_params: Option<build::GGCATParams>,
+    skani_params: &Option<dist::SkaniParams>,
+    kodama_params: &Option<clust::KodamaParams>,
+    ggcat_params: &Option<build::GGCATParams>,
 ) -> Vec<String> {
     info!("Calculating ANIs...");
     let fastx_files = old_clusters.iter().cloned().unique().collect();
     let ani_result = dist::ani_from_fastx_files(
         &fastx_files,
-        &skani_params.unwrap_or(dist::SkaniParams::default()),
+        skani_params,
     );
 
     info!("Building dendrogram...");
     let hclust_res = clust::single_linkage_cluster(
         &ani_result,
-        kodama_params.unwrap_or(clust::KodamaParams::default()),
+        kodama_params,
     );
 
     let mut new_clusters: Vec<String> =
@@ -88,7 +88,7 @@ pub fn dereplicate_iter(
     build::build_pangenome_representations(
         &seq_files,
         &mut new_clusters,
-        &ggcat_params.unwrap_or(build::GGCATParams::default()),
+        ggcat_params,
     );
 
     return new_clusters;
@@ -97,12 +97,12 @@ pub fn dereplicate_iter(
 pub fn dereplicate(
     seq_files: &[String],
     initial_clusters: &[String],
-    dereplicate_params: Option<PanaaniParams>,
-    skani_params: Option<dist::SkaniParams>,
-    kodama_params: Option<clust::KodamaParams>,
-    ggcat_params: Option<build::GGCATParams>,
+    dereplicate_params: &Option<PanaaniParams>,
+    skani_params: &Option<dist::SkaniParams>,
+    kodama_params: &Option<clust::KodamaParams>,
+    ggcat_params: &Option<build::GGCATParams>,
 ) -> Vec<String> {
-    let my_params = dereplicate_params.unwrap_or(PanaaniParams::default());
+    let my_params = dereplicate_params.clone().unwrap_or(PanaaniParams::default());
 
     let mut iter: usize = 0;
     let mut new_clusters: Vec<String> = Vec::from(initial_clusters);
@@ -121,9 +121,9 @@ pub fn dereplicate(
                     &x.0,
                     &x.1,
                     &(iter.to_string() + "_" + &(rng.gen::<u64>() as u64).to_string() + "-"),
-                    skani_params.clone(),
-                    kodama_params.clone(),
-                    ggcat_params.clone(),
+                    skani_params,
+                    kodama_params,
+                    ggcat_params,
                 )
             })
             .flatten()

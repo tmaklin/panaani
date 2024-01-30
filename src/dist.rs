@@ -51,8 +51,9 @@ impl Default for SkaniParams {
 
 pub fn ani_from_fastx_files(
     fastx_files: &Vec<String>,
-    skani_params: &SkaniParams,
+    opt: &Option<SkaniParams>,
 ) -> Vec<(String, String, f32, f32, f32)> {
+    let skani_params = opt.clone().unwrap_or(SkaniParams::default());
     let sketch_params = skani::params::SketchParams::new(
         skani_params.marker_compression_factor as usize,
         skani_params.kmer_subsampling_rate as usize,

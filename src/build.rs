@@ -71,8 +71,9 @@ fn open_ggcat_inputs(seq_files: &[String]) -> Vec<ggcat_api::GeneralSequenceBloc
     return ggcat_inputs;
 }
 
-fn build_pangenome_graph(input_seq_names: &[String], prefix: &String, params: &GGCATParams) {
     info!("Building graph {} from {} sequences...", prefix, input_seq_names.len());
+fn build_pangenome_graph(input_seq_names: &[String], prefix: &String, opt: &Option<GGCATParams>) {
+    let params = opt.clone().unwrap_or(GGCATParams::default());
 
     let config = GGCATConfig {
         temp_dir: Some(PathBuf::from(params.temp_dir_path.clone())),
@@ -131,7 +132,7 @@ fn build_pangenome_graph(input_seq_names: &[String], prefix: &String, params: &G
 pub fn build_pangenome_representations(
     seq_files: &[String],
     clusters: &mut [String],
-    params: &GGCATParams,
+    params: &Option<GGCATParams>,
 ) {
     let mut files_in_cluster: HashMap<String, Vec<String>> = HashMap::new();
 

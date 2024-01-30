@@ -146,10 +146,10 @@ fn main() {
             let clusters = panaani::dereplicate(
                 &seq_files,
                 &seq_files,
-                Some(params),
-                Some(skani_params),
-                Some(kodama_params),
-                Some(ggcat_params),
+                &Some(params),
+                &Some(skani_params),
+                &Some(kodama_params),
+                &Some(ggcat_params),
             );
             let n_clusters = clusters.iter().unique().collect::<Vec<&String>>().len();
 
@@ -195,7 +195,7 @@ fn main() {
                 ..Default::default()
             };
 
-            let results = dist::ani_from_fastx_files(seq_files, &skani_params);
+            let results = dist::ani_from_fastx_files(seq_files, &Some(skani_params));
 
             for res in results {
                 println!(
@@ -315,7 +315,7 @@ fn main() {
             }
             res.sort_by_key(|k| (k.0.clone(), k.1.clone()));
 
-            clust::single_linkage_cluster(&res, kodama_params);
+            clust::single_linkage_cluster(&res, &Some(kodama_params));
         }
         None => {}
     }
