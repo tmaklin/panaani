@@ -75,7 +75,8 @@ fn main() {
 
             let params: panaani::PanaaniParams = panaani::PanaaniParams {
                 batch_step: *batch_step,
-		max_iters: *max_iters,
+                batch_step_strategy: batch_step_strategy.clone(),
+                max_iters: *max_iters,
             };
 
             let skani_params = panaani::dist::SkaniParams {
@@ -150,17 +151,13 @@ fn main() {
                 Some(kodama_params),
                 Some(ggcat_params),
             );
-            let n_clusters = clusters
-                .iter()
-                .map(|x| x.1.clone())
-                .unique()
-                .collect::<Vec<String>>()
-                .len();
+            let n_clusters = clusters.iter().unique().collect::<Vec<&String>>().len();
 
             info!("Created {} clusters", n_clusters);
-            for cluster in clusters {
-                println!("{}\t{}", cluster.0, cluster.1);
-            }
+            seq_files
+                .iter()
+                .zip(clusters.iter())
+                .for_each(|x| println!("{}\t{}", x.0, x.1));
         }
 
         // Calculate distances between some input fasta files
