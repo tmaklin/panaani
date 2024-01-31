@@ -49,6 +49,15 @@ impl Default for SkaniParams {
     }
 }
 
+fn filter_ani(ani: f32, ref_align_frac: f32, query_align_frac: f32,
+	      ref_min_align_frac: f32, query_min_align_frac: f32) -> f32 {
+    if ani > 0.0 && ani < 1.0 && !ani.is_nan() && (ref_align_frac > ref_min_align_frac || query_align_frac > query_min_align_frac) {
+        ani
+    } else {
+        0.0
+    }
+}
+
 pub fn ani_from_fastx_files(
     fastx_files: &Vec<String>,
     opt: &Option<SkaniParams>,
@@ -77,7 +86,7 @@ pub fn ani_from_fastx_files(
         max_results: 10000000,
         individual_contig_q: false,
         individual_contig_r: false,
-        min_aligned_frac: skani_params.min_aligned_frac,
+        min_aligned_frac: 0.0,
         keep_refs: false,
         est_ci: skani_params.bootstrap_ci,
         learned_ani: skani_params.adjust_ani,
@@ -120,11 +129,7 @@ pub fn ani_from_fastx_files(
             (
 		x.0,
 		x.1,
-		if x.2.ani > 0.0 && x.2.ani < 1.0 && !x.2.ani.is_nan() {
-                    x.2.ani
-		} else {
-                    0.0
-		},
+		filter_ani(x.2.ani, x.2.align_fraction_ref, x.2.align_fraction_query, skani_params.min_aligned_frac as f32, skani_params.min_aligned_frac as f32),
             )
 	})
         .collect();
