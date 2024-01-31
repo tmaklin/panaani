@@ -98,7 +98,7 @@ pub enum Commands {
 
         #[arg(
             long = "min-af",
-            default_value_t = 0.0,
+            default_value_t = 0.15,
             help_heading = "ANI estimation"
         )]
         min_aligned_frac: f64,

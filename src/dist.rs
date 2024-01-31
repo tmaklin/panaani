@@ -43,7 +43,7 @@ impl Default for SkaniParams {
             median: false,
             adjust_ani: false,
 
-            min_aligned_frac: 0.0,
+            min_aligned_frac: 0.15,
             bootstrap_ci: false,
         }
     }
