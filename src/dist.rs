@@ -52,7 +52,7 @@ impl Default for SkaniParams {
 pub fn ani_from_fastx_files(
     fastx_files: &Vec<String>,
     opt: &Option<SkaniParams>,
-) -> Vec<(String, String, f32, f32, f32)> {
+) -> Vec<(String, String, f32)> {
     let skani_params = opt.clone().unwrap_or(SkaniParams::default());
     let sketch_params = skani::params::SketchParams::new(
         skani_params.marker_compression_factor as usize,
@@ -95,35 +95,36 @@ pub fn ani_from_fastx_files(
         .combinations(2)
         .par_bridge()
         .for_each_with(sender, |s, pair| {
-            let _ = s.send(skani::chain::chain_seeds(
-                pair.first().unwrap(),
-                pair.last().unwrap(),
-                skani::chain::map_params_from_sketch(
-                    pair.first().unwrap(),
-                    false,
-                    &cmd_params,
-                    &adjust_ani,
-                ),
-            ));
+	    s.send(
+		(pair.first().unwrap().file_name.clone(),
+		 pair.last().unwrap().file_name.clone(),
+		 skani::chain::chain_seeds(
+                     pair.first().unwrap(),
+                     pair.last().unwrap(),
+                     skani::chain::map_params_from_sketch(
+			 pair.first().unwrap(),
+			 false,
+			 &cmd_params,
+			 &adjust_ani,
+                     ),
+		 )));
         });
 
-    let ani_result: Vec<(String, String, f32, f32, f32)> = receiver
+    let ani_result: Vec<(String, String, f32)> = receiver
         .iter()
-        .sorted_by(|k1, k2| match k1.ref_file.cmp(&k2.ref_file) {
-            Ordering::Equal => k1.query_file.cmp(&k2.query_file),
+        .sorted_by(|k1, k2| match k1.0.cmp(&k2.0) {
+            Ordering::Equal => k1.1.cmp(&k2.1),
             other => other,
         })
 	.map(|x| {
             (
-		x.ref_file,
-		x.query_file,
-		if x.ani > 0.0 && x.ani < 1.0 && !x.ani.is_nan() {
-                    1.0 - x.ani
+		x.0,
+		x.1,
+		if x.2.ani > 0.0 && x.2.ani < 1.0 && !x.2.ani.is_nan() {
+                    x.2.ani
 		} else {
-                    1.0
+                    0.0
 		},
-		x.align_fraction_ref,
-		x.align_fraction_query,
             )
 	})
         .collect();

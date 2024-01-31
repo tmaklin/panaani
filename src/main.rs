@@ -200,12 +200,10 @@ fn main() {
 
             for res in results {
                 println!(
-                    "{}\t{}\t{}\t{}\t{}",
+                    "{}\t{}\t{}",
                     res.0,
                     res.1,
                     res.2,
-                    res.3,
-                    res.4
                 );
             }
         }
@@ -301,15 +299,13 @@ fn main() {
                 .from_reader(f);
 
             let mut seq_names: HashSet<String> = HashSet::new();
-            let mut res: Vec<(String, String, f32, f32, f32)> = Vec::new();
+            let mut res: Vec<(String, String, f32)> = Vec::new();
             for line in reader.records().into_iter() {
                 let record = line.unwrap();
                 res.push((
                     record[0].to_string().clone(),
                     record[1].to_string().clone(),
                     record[2].parse().unwrap(),
-                    record[3].parse().unwrap(),
-                    record[4].parse().unwrap(),
                 ));
                 seq_names.insert(record[0].to_string());
                 seq_names.insert(record[0].to_string());

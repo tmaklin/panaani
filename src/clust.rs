@@ -49,7 +49,7 @@ fn cut_dendrogram(dendr: &kodama::Dendrogram<f32>, height: f32) -> Vec<usize> {
 }
 
 pub fn single_linkage_cluster(
-    ani_result: &Vec<(String, String, f32, f32, f32)>,
+    ani_result: &Vec<(String, String, f32)>,
     opt: &Option<KodamaParams>,
 ) -> Vec<usize> {
 
