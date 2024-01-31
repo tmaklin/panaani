@@ -1,3 +1,11 @@
+// panaani: Pangenome-aware dereplication of bacterial genomes into ANI clusters
+//
+// Copyright (c) Tommi Mäklin <tommi 'at' maklin.fi>
+//
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+//
 #[derive(Clone)]
 pub struct KodamaParams {
     // Hierarchical clustering
@@ -54,7 +62,7 @@ pub fn single_linkage_cluster(
 ) -> Vec<usize> {
 
     let params = opt.clone().unwrap_or(KodamaParams::default());
-    let mut flattened_similarity_matrix: Vec<f32> = ani_result.into_iter().map(|x| x.2).collect();
+    let mut flattened_similarity_matrix: Vec<f32> = ani_result.into_iter().map(|x| 1.0 - x.2).collect();
     let num_seqs = (0.5*(f64::sqrt((8*flattened_similarity_matrix.len() + 1) as f64) + 1.0)).round() as usize;
     let dend = kodama::linkage(&mut flattened_similarity_matrix, num_seqs, params.method);
 
