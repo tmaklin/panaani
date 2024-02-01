@@ -197,7 +197,7 @@ pub enum Commands {
         #[arg(long = "adjust-ani", default_value_t = false)]
         adjust_ani: bool,
 
-        #[arg(long = "min-af", default_value_t = 0.)]
+        #[arg(long = "min-af", default_value_t = 0.15)]
         min_aligned_frac: f64,
     },
     Build {
