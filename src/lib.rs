@@ -35,7 +35,7 @@ impl Default for PanaaniParams {
     }
 }
 
-fn match_clustering_results(
+pub fn match_clustering_results(
     fastx_files: &[String],
     old_clusters: &[String],
     hclust_res: &[usize],

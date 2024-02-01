@@ -6,6 +6,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 //
+use std::cmp::Ordering;
 use std::collections::HashSet;
 
 use clap::Parser;
@@ -305,14 +306,22 @@ fn main() {
                 res.push((
                     record[0].to_string().clone(),
                     record[1].to_string().clone(),
-                    record[2].parse().unwrap(),
+                    record[2].parse::<f32>().unwrap(),
                 ));
                 seq_names.insert(record[0].to_string());
                 seq_names.insert(record[0].to_string());
             }
-            res.sort_by_key(|k| (k.0.clone(), k.1.clone()));
+	    res.sort_by(|k1, k2| match k1.0.cmp(&k2.0) {
+		Ordering::Equal => k1.1.cmp(&k2.1),
+		other => other,
+            });
 
-            clust::single_linkage_cluster(&res, &Some(kodama_params));
+	    let old_clusters = seq_names.iter().map(|x| x).cloned().collect::<Vec<String>>();
+            let hclust_res = clust::single_linkage_cluster(&res, &Some(kodama_params));
+
+	    let new_clusters: Vec<String> =
+		panaani::match_clustering_results(&old_clusters, &old_clusters, &hclust_res, &"panANI-".to_string());
+	    old_clusters.iter().zip(new_clusters.iter()).for_each(|x| { println!("{}\t{}", x.0, x.1) } );
         }
         None => {}
     }
