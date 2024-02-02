@@ -11,7 +11,6 @@ use std::io::Read;
 use std::path::PathBuf;
 
 use log::debug;
-use log::info;
 use log::trace;
 
 use ggcat_api::{GGCATConfig, GGCATInstance};
