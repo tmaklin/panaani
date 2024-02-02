@@ -10,6 +10,7 @@ use std::collections::HashMap;
 
 use itertools::Itertools;
 use log::info;
+use log::trace;
 use rand::Rng;
 
 pub mod build;
@@ -104,6 +105,7 @@ pub fn dereplicate(
     kodama_params: &Option<clust::KodamaParams>,
     ggcat_params: &Option<build::GGCATParams>,
 ) -> Vec<String> {
+    trace!("Dereplicate input contains {} sequences in {} clusters", seq_files.len(), initial_clusters.iter().unique().collect::<Vec<&String>>().len());
     let my_params = dereplicate_params.clone().unwrap_or(PanaaniParams::default());
 
     let mut iter: usize = 0;
@@ -112,6 +114,7 @@ pub fn dereplicate(
     let mut batch_size = my_params.batch_step;
     let mut n_remaining: usize = seq_files.len();
     while batch_size < n_remaining && iter < my_params.max_iters {
+	info!("Iteration {} processing {} sequences in batches of {}...", iter + 1, n_remaining, batch_size);
         let mut rng = rand::thread_rng();
 
         // horrible hack to use random file names within each batch
