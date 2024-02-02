@@ -59,7 +59,7 @@ impl Default for GGCATParams {
 
 fn build_pangenome_graph(input_seq_names: &[String], prefix: &String, instance: &GGCATInstance, params: &GGCATParams) {
     debug!("Building graph {} from {} sequences:", prefix, input_seq_names.len());
-    input_seq_names.iter().for_each(|x| { info!("\t{}", x) });
+    input_seq_names.iter().for_each(|x| { debug!("\t{}", x) });
 
     let graph_file = PathBuf::from(prefix.to_owned());
     let inputs: Vec<ggcat_api::GeneralSequenceBlockData> = input_seq_names
