@@ -248,13 +248,11 @@ fn main() {
                 ..Default::default()
             };
 
+	    let clusters: &mut Vec<String> = &mut seq_files.clone();
             build::build_pangenome_representations(
-                &seq_files
-                    .iter()
-                    .cloned()
-                    .zip(external_clusters.iter().cloned())
-                    .collect::<Vec<(String, String)>>(),
-                &ggcat_params,
+                &seq_files,
+		clusters,
+                &Some(ggcat_params),
             );
         }
 
