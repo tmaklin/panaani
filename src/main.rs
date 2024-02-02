@@ -34,6 +34,15 @@ impl log::Log for Logger {
     fn flush(&self) {}
 }
 
+fn init(threads: usize, LOG: &'static Logger, log_max_level: LevelFilter) {
+    log::set_logger(LOG).map(|()| log::set_max_level(log_max_level ));
+    rayon::ThreadPoolBuilder::new()
+        .num_threads(threads)
+        .thread_name(|i| format!("rayon-thread-{}", i))
+        .build_global()
+        .unwrap();
+}
+
 fn main() {
     static LOG: Logger = Logger;
     let cli = cli::Cli::parse();
@@ -67,12 +76,7 @@ fn main() {
 	    max_iters,
 	    batch_step_strategy,
         }) => {
-	    let _ = log::set_logger(&LOG).map(|()| log::set_max_level(if *verbose { LevelFilter::Info } else { LevelFilter::Warn } ));
-            rayon::ThreadPoolBuilder::new()
-                .num_threads(*threads as usize)
-                .thread_name(|i| format!("rayon-thread-{}", i))
-                .build_global()
-                .unwrap();
+	    init(*threads as usize, &LOG, if *verbose { LevelFilter::Info } else { LevelFilter::Warn });
 
             let params: panaani::PanaaniParams = panaani::PanaaniParams {
                 batch_step: *batch_step,
@@ -176,12 +180,7 @@ fn main() {
             min_aligned_frac,
 	    verbose
         }) => {
-	    let _ = log::set_logger(&LOG).map(|()| log::set_max_level(if *verbose { LevelFilter::Info } else { LevelFilter::Warn } ));
-            rayon::ThreadPoolBuilder::new()
-                .num_threads(*threads as usize)
-                .thread_name(|i| format!("rayon-thread-{}", i))
-                .build_global()
-                .unwrap();
+	    init(*threads as usize, &LOG, if *verbose { LevelFilter::Info } else { LevelFilter::Warn });
 
             let skani_params = dist::SkaniParams {
                 kmer_size: *skani_kmer_size,
@@ -198,15 +197,7 @@ fn main() {
             };
 
             let results = dist::ani_from_fastx_files(seq_files, &Some(skani_params));
-
-            for res in results {
-                println!(
-                    "{}\t{}\t{}",
-                    res.0,
-                    res.1,
-                    res.2,
-                );
-            }
+	    results.iter().for_each(|x| { println!("{}\t{}\t{}", x.0, x.1, x.2) });
         }
 
         // Build pangenome representations from input fasta files and their clusters
@@ -224,7 +215,8 @@ fn main() {
             intermediate_compression_level,
 	    verbose
         }) => {
-	    let _ = log::set_logger(&LOG).map(|()| log::set_max_level(if *verbose { LevelFilter::Info } else { LevelFilter::Warn } ));
+	    init(*threads as usize, &LOG, if *verbose { LevelFilter::Info } else { LevelFilter::Warn });
+
             let ggcat_params = build::GGCATParams {
                 kmer_size: *ggcat_kmer_size,
                 kmer_min_multiplicity: *kmer_min_multiplicity,
@@ -273,7 +265,8 @@ fn main() {
             linkage_method,
 	    verbose
         }) => {
-	    let _ = log::set_logger(&LOG).map(|()| log::set_max_level(if *verbose { LevelFilter::Info } else { LevelFilter::Warn } ));
+	    init(1 as usize, &LOG, if *verbose { LevelFilter::Info } else { LevelFilter::Warn });
+
             let kodama_params = clust::KodamaParams {
                 cutoff: *ani_threshold,
                 method: if linkage_method.is_some() {
