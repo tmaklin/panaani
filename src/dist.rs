@@ -104,7 +104,7 @@ pub fn ani_from_fastx_files(
         .combinations(2)
         .par_bridge()
         .for_each_with(sender, |s, pair| {
-	    s.send(
+	    let _ = s.send(
 		(pair.first().unwrap().file_name.clone(),
 		 pair.last().unwrap().file_name.clone(),
 		 skani::chain::chain_seeds(

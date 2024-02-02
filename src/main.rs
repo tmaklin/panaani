@@ -34,8 +34,8 @@ impl log::Log for Logger {
     fn flush(&self) {}
 }
 
-fn init(threads: usize, LOG: &'static Logger, log_max_level: LevelFilter) {
-    log::set_logger(LOG).map(|()| log::set_max_level(log_max_level ));
+fn init(threads: usize, log: &'static Logger, log_max_level: LevelFilter) {
+    let _ = log::set_logger(log).map(|()| log::set_max_level(log_max_level ));
     rayon::ThreadPoolBuilder::new()
         .num_threads(threads)
         .thread_name(|i| format!("rayon-thread-{}", i))
