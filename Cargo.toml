@@ -32,3 +32,8 @@ kodama = "0.3.0"
 
 # thread pools
 rayon = "1.8.1"
+
+[profile.release]
+lto = true
+strip = true
+codegen-units = 1
