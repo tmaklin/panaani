@@ -8,10 +8,11 @@
 //
 use std::cmp::Ordering;
 use std::collections::HashSet;
+use std::io::Read;
 
 use clap::Parser;
 use itertools::Itertools;
-use log::{info, Record, Level, LevelFilter, Metadata};
+use log::{info, trace, Record, Level, LevelFilter, Metadata};
 
 mod build;
 mod cli;
@@ -34,8 +35,64 @@ impl log::Log for Logger {
     fn flush(&self) {}
 }
 
-fn init(threads: usize, log: &'static Logger, log_max_level: LevelFilter) {
+fn init_ggcat(opt: &Option<build::GGCATParams>) {
+    // GGCAT API force initializes rayon::ThreadPool using build_global
+    // so chaining skani -> kodama -> ggcat requires calling the GGCAT
+    // API before running skani to get parallelism working correctly.
+    let params = opt.clone().unwrap_or(build::GGCATParams::default());
+    let config = ggcat_api::GGCATConfig {
+        temp_dir: Some(std::path::PathBuf::from(params.temp_dir_path.clone())),
+        memory: params.memory as f64,
+        prefer_memory: false,
+        total_threads_count: params.threads as usize,
+        intermediate_compression_level: params.intermediate_compression_level,
+        stats_file: params.stats_file.clone(),
+    };
+
+    // GGCATInstance is static in the API and can be retrieved by calling
+    // GGCATInstance::create again, so no need to return the value.
+    let mut buf = gag::BufferRedirect::stdout().unwrap();
+    let _ = ggcat_api::GGCATInstance::create(config);
+    let mut output = String::new();
+    buf.read_to_string(&mut output).unwrap();
+    drop(buf);
+    for line in output.lines() {
+	trace!("{}", line);
+    }
+}
+
+fn init_ggcat2(opt: &Option<panaani::build::GGCATParams>) {
+    // GGCAT API force initializes rayon::ThreadPool using build_global
+    // so chaining skani -> kodama -> ggcat requires calling the GGCAT
+    // API before running skani to get parallelism working correctly.
+    let params = opt.clone().unwrap_or(panaani::build::GGCATParams::default());
+    let config = ggcat_api::GGCATConfig {
+        temp_dir: Some(std::path::PathBuf::from(params.temp_dir_path.clone())),
+        memory: params.memory as f64,
+        prefer_memory: false,
+        total_threads_count: params.threads as usize,
+        intermediate_compression_level: params.intermediate_compression_level,
+        stats_file: params.stats_file.clone(),
+    };
+
+    // GGCATInstance is static in the API and can be retrieved by calling
+    // GGCATInstance::create again, so no need to return the value.
+    let mut buf = gag::BufferRedirect::stdout().unwrap();
+    let _ = ggcat_api::GGCATInstance::create(config);
+    let mut output = String::new();
+    buf.read_to_string(&mut output).unwrap();
+    drop(buf);
+    for line in output.lines() {
+	trace!("{}", line);
+    }
+}
+
+fn init_log(log: &'static Logger, log_max_level: LevelFilter) {
     let _ = log::set_logger(log).map(|()| log::set_max_level(log_max_level ));
+}
+
+fn init(threads: usize, log: &'static Logger, log_max_level: LevelFilter) {
+    init_log(log, log_max_level);
     rayon::ThreadPoolBuilder::new()
         .num_threads(threads)
         .thread_name(|i| format!("rayon-thread-{}", i))
@@ -76,7 +133,7 @@ fn main() {
 	    max_iters,
 	    batch_step_strategy,
         }) => {
-	    init(*threads as usize, &LOG, if *verbose { LevelFilter::Info } else { LevelFilter::Warn });
+	    init_log(&LOG, if *verbose { LevelFilter::Info } else { LevelFilter::Warn });
 
             let params: panaani::PanaaniParams = panaani::PanaaniParams {
                 batch_step: *batch_step,
@@ -149,6 +206,8 @@ fn main() {
                 ..Default::default()
             };
 
+	    init_ggcat2(&Some(ggcat_params.clone()));
+
             let clusters = panaani::dereplicate(
                 &seq_files,
                 &seq_files,
@@ -215,7 +274,7 @@ fn main() {
             intermediate_compression_level,
 	    verbose
         }) => {
-	    init(*threads as usize, &LOG, if *verbose { LevelFilter::Info } else { LevelFilter::Warn });
+	    init_log(&LOG, if *verbose { LevelFilter::Info } else { LevelFilter::Warn });
 
             let ggcat_params = build::GGCATParams {
                 kmer_size: *ggcat_kmer_size,
@@ -247,6 +306,8 @@ fn main() {
                 memory: *memory,
                 ..Default::default()
             };
+
+	    init_ggcat(&Some(ggcat_params.clone()));
 
 	    let clusters: &mut Vec<String> = &mut seq_files.clone();
             build::build_pangenome_representations(
