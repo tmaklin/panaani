@@ -250,8 +250,8 @@ pub enum Commands {
         #[arg(group = "input", required = true)]
         seq_files: Vec<String>,
 
-        #[arg(long = "external-clustering", required = false, help_heading = "Input")]
-        external_clusters: String,
+        #[arg(long = "external-clustering", required = true, help_heading = "Input")]
+        external_clusters: Option<String>,
 
         // Resources
         #[arg(short = 't', long = "threads", default_value_t = 1)]
