@@ -253,6 +253,9 @@ pub enum Commands {
         #[arg(long = "external-clustering", required = true, help_heading = "Input")]
         external_clusters: Option<String>,
 
+	#[arg(long = "target", required = false, help_heading = "Input")]
+        target_cluster: Option<String>,
+
         // Resources
         #[arg(short = 't', long = "threads", default_value_t = 1)]
         threads: u32,

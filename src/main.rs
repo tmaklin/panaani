@@ -264,6 +264,7 @@ fn main() {
         Some(cli::Commands::Build {
             seq_files,
             external_clusters,
+	    target_cluster,
             threads,
             memory,
             temp_dir_path,
@@ -325,9 +326,16 @@ fn main() {
 		    seq_to_cluster.insert(record[0].to_string().clone(), record[1].to_string().clone());
 		});
 
-		seq_files.iter().for_each(|seq| {
-		    clusters.push(seq_to_cluster.get(seq).unwrap().clone());
-		});
+		if target_cluster.is_some() {
+		    seq_files.iter().for_each(|seq| {
+			let cluster = seq_to_cluster.get(seq).unwrap().clone();
+			clusters.push(if cluster == target_cluster.clone().unwrap() { seq_to_cluster.get(seq).unwrap().clone() } else { seq.clone() });
+		    });
+		} else {
+		    seq_files.iter().for_each(|seq| {
+			clusters.push(seq_to_cluster.get(seq).unwrap().clone());
+		    });
+		}
 	    } else {
 		seq_files.iter().for_each(|seq| clusters.push(seq.clone()));
 	    }
