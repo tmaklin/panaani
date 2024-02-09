@@ -7,6 +7,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 //
 use std::cmp::Ordering;
+use std::collections::HashMap;
 use std::collections::HashSet;
 use std::io::Read;
 
@@ -309,7 +310,28 @@ fn main() {
 
 	    init_ggcat(&Some(ggcat_params.clone()));
 
-	    let clusters: &mut Vec<String> = &mut seq_files.clone();
+	    let clusters: &mut Vec<String> = &mut Vec::new();
+
+	    if external_clusters.is_some() {
+		let f = std::fs::File::open(external_clusters.clone().unwrap()).unwrap();
+		let mut reader = csv::ReaderBuilder::new()
+                    .delimiter(b'\t')
+                    .has_headers(false)
+                    .from_reader(f);
+
+		let mut seq_to_cluster: HashMap<String, String> = HashMap::new();
+		reader.records().into_iter().for_each(|line| {
+                    let record = line.unwrap();
+		    seq_to_cluster.insert(record[0].to_string().clone(), record[1].to_string().clone());
+		});
+
+		seq_files.iter().for_each(|seq| {
+		    clusters.push(seq_to_cluster.get(seq).unwrap().clone());
+		});
+	    } else {
+		seq_files.iter().for_each(|seq| clusters.push(seq.clone()));
+	    }
+
             build::build_pangenome_representations(
                 &seq_files,
 		clusters,
