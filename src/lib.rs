@@ -94,7 +94,7 @@ pub fn dereplicate_iter(
         ggcat_params,
     );
 
-    return new_clusters;
+    return new_clusters.iter().map(|x| if ggcat_params.is_some() { ggcat_params.clone().unwrap().out_prefix + x } else { x.clone() }).collect();
 }
 
 pub fn dereplicate(

@@ -24,6 +24,10 @@ pub enum Commands {
         #[arg(group = "input", required = true)]
         seq_files: Vec<String>,
 
+	// Outputs
+        #[arg(short = 'o', long = "out-prefix", required = false, help_heading = "Output")]
+        out_prefix: Option<String>,
+
         // Resources
         #[arg(short = 't', long = "threads", default_value_t = 1)]
         threads: u32,
@@ -256,6 +260,10 @@ pub enum Commands {
 	#[arg(long = "target", required = false, help_heading = "Input")]
         target_cluster: Option<String>,
 
+	// Outputs
+        #[arg(short = 'o', long = "out-prefix", required = false, help_heading = "Output")]
+        out_prefix: Option<String>,
+
         // Resources
         #[arg(short = 't', long = "threads", default_value_t = 1)]
         threads: u32,
@@ -315,6 +323,10 @@ pub enum Commands {
     Cluster {
         #[arg(group = "input")]
         dist_file: String,
+
+	// Outputs
+        #[arg(short = 'o', long = "out-prefix", required = false, help_heading = "Output")]
+        out_prefix: Option<String>,
 
         #[arg(long = "verbose", default_value_t = false)]
         verbose: bool,

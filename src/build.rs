@@ -31,6 +31,9 @@ pub struct GGCATParams {
     pub memory: u32,
     pub temp_dir_path: String,
 
+    // Output
+    pub out_prefix: String,
+
     // Intermediate outputs
     pub intermediate_compression_level: Option<u32>,
     pub stats_file: Option<PathBuf>,
@@ -50,6 +53,8 @@ impl Default for GGCATParams {
             memory: 4,
             temp_dir_path: "/tmp".to_string(),
 
+	    out_prefix: "".to_string(),
+
             intermediate_compression_level: None,
             stats_file: None,
         }
@@ -60,7 +65,7 @@ fn build_pangenome_graph(input_seq_names: &[String], prefix: &String, instance: 
     debug!("Building graph {} from {} sequences:", prefix, input_seq_names.len());
     input_seq_names.iter().for_each(|x| { debug!("\t{}", x) });
 
-    let graph_file = PathBuf::from(prefix.to_owned());
+    let graph_file = PathBuf::from(params.out_prefix.clone() + prefix);
     let inputs: Vec<ggcat_api::GeneralSequenceBlockData> = input_seq_names
         .iter()
         .map(|x| ggcat_api::GeneralSequenceBlockData::FASTA((PathBuf::from(x), None)))

@@ -133,6 +133,7 @@ fn main() {
 	    verbose,
 	    max_iters,
 	    batch_step_strategy,
+	    out_prefix,
         }) => {
 	    init_log(&LOG, if *verbose { LevelFilter::Info } else { LevelFilter::Warn });
 
@@ -204,6 +205,7 @@ fn main() {
                 temp_dir_path: temp_dir_path.clone().unwrap_or("./".to_string()),
                 threads: *threads,
                 memory: *memory,
+		out_prefix: out_prefix.clone().unwrap_or("".to_string()),
                 ..Default::default()
             };
 
@@ -274,7 +276,8 @@ fn main() {
             no_reverse_complement,
             unitig_type,
             intermediate_compression_level,
-	    verbose
+	    verbose,
+	    out_prefix,
         }) => {
 	    init_log(&LOG, if *verbose { LevelFilter::Info } else { LevelFilter::Warn });
 
@@ -306,6 +309,7 @@ fn main() {
                 temp_dir_path: temp_dir_path.clone().unwrap_or("./".to_string()),
                 threads: *threads,
                 memory: *memory,
+		out_prefix: out_prefix.clone().unwrap_or("".to_string()),
                 ..Default::default()
             };
 
@@ -352,7 +356,8 @@ fn main() {
             dist_file,
             ani_threshold,
             linkage_method,
-	    verbose
+	    verbose,
+	    out_prefix,
         }) => {
 	    init(1 as usize, &LOG, if *verbose { LevelFilter::Info } else { LevelFilter::Warn });
 
@@ -401,8 +406,9 @@ fn main() {
 	    let old_clusters = seq_names.iter().map(|x| x).cloned().collect::<Vec<String>>();
             let hclust_res = clust::single_linkage_cluster(&res, &Some(kodama_params));
 
+	    let prefix = out_prefix.clone().unwrap_or("".to_string()) + &"panANI-".to_string();
 	    let new_clusters: &mut Vec<String> = &mut
-		panaani::match_clustering_results(&old_clusters, &old_clusters, &hclust_res, &"panANI-".to_string());
+		panaani::match_clustering_results(&old_clusters, &old_clusters, &hclust_res, &prefix);
 
 	    let mut files_in_cluster: HashMap<String, Vec<String>> = HashMap::new();
 	    seq_names.iter().zip(new_clusters.iter()).for_each(|x| {
