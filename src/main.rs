@@ -361,7 +361,7 @@ fn main() {
                     record[2].parse::<f32>().unwrap(),
                 ));
                 seq_names.insert(record[0].to_string());
-                seq_names.insert(record[0].to_string());
+                seq_names.insert(record[1].to_string());
             }
 	    res.sort_by(|k1, k2| match k1.0.cmp(&k2.0) {
 		Ordering::Equal => k1.1.cmp(&k2.1),
