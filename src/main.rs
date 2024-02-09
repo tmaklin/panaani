@@ -401,8 +401,23 @@ fn main() {
 	    let old_clusters = seq_names.iter().map(|x| x).cloned().collect::<Vec<String>>();
             let hclust_res = clust::single_linkage_cluster(&res, &Some(kodama_params));
 
-	    let new_clusters: Vec<String> =
+	    let new_clusters: &mut Vec<String> = &mut
 		panaani::match_clustering_results(&old_clusters, &old_clusters, &hclust_res, &"panANI-".to_string());
+
+	    let mut files_in_cluster: HashMap<String, Vec<String>> = HashMap::new();
+	    seq_names.iter().zip(new_clusters.iter()).for_each(|x| {
+		if files_in_cluster.contains_key(x.1) {
+		    files_in_cluster.get_mut(x.1).unwrap().push(x.0.clone());
+		} else {
+		    files_in_cluster.insert(x.1.clone(), vec![x.0.clone()]);
+		}
+	    });
+	    seq_names.iter().zip(new_clusters.iter_mut()).for_each(|x| {
+		if files_in_cluster.get(x.1).unwrap().len() == 1 {
+		    *x.1 = x.0.clone();
+		}
+	    });
+
 	    old_clusters.iter().zip(new_clusters.iter()).for_each(|x| { println!("{}\t{}", x.0, x.1) } );
         }
         None => {}
