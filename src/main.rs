@@ -101,6 +101,21 @@ fn init(threads: usize, log: &'static Logger, log_max_level: LevelFilter) {
         .unwrap();
 }
 
+fn read_input_list(input_list_file: &String) -> Vec<String> {
+    let f = std::fs::File::open(input_list_file).unwrap();
+    let mut reader = csv::ReaderBuilder::new()
+        .delimiter(b'\t')
+        .has_headers(false)
+        .from_reader(f);
+
+    let mut seq_files: Vec<String> = Vec::new();
+    reader.records().into_iter().for_each(|line| {
+        let record = line.unwrap();
+	seq_files.push(record[0].to_string().clone());
+    });
+    seq_files
+}
+
 fn main() {
     static LOG: Logger = Logger;
     let cli = cli::Cli::parse();
@@ -110,6 +125,7 @@ fn main() {
         // Run the full pipeline
         Some(cli::Commands::Dereplicate {
             seq_files,
+            input_list,
             batch_step,
             linkage_method,
             skani_kmer_size,
@@ -209,11 +225,17 @@ fn main() {
                 ..Default::default()
             };
 
+	    // TODO seq_files should be mutable by default to avoid cloning
+	    let mut seq_files_in: Vec<String> = seq_files.clone();
+	    if input_list.is_some() {
+		seq_files_in.append(read_input_list(input_list.as_ref().unwrap()).as_mut());
+	    }
+
 	    init_ggcat2(&Some(ggcat_params.clone()));
 
             let clusters = panaani::dereplicate(
-                &seq_files,
-                &seq_files,
+                &seq_files_in,
+                &seq_files_in,
                 &Some(params),
                 &Some(skani_params),
                 &Some(kodama_params),
@@ -231,6 +253,7 @@ fn main() {
         // Calculate distances between some input fasta files
         Some(cli::Commands::Dist {
             seq_files,
+	    input_list,
             threads,
             skani_kmer_size,
             kmer_subsampling_rate,
@@ -258,13 +281,20 @@ fn main() {
                 ..Default::default()
             };
 
-            let results = dist::ani_from_fastx_files(seq_files, &Some(skani_params));
+	    // TODO seq_files should be mutable by default to avoid cloning
+	    let mut seq_files_in: Vec<String> = seq_files.clone();
+	    if input_list.is_some() {
+		seq_files_in.append(read_input_list(input_list.as_ref().unwrap()).as_mut());
+	    }
+
+            let results = dist::ani_from_fastx_files(&seq_files_in, &Some(skani_params));
 	    results.iter().for_each(|x| { println!("{}\t{}\t{}", x.0, x.1, x.2) });
         }
 
         // Build pangenome representations from input fasta files and their clusters
         Some(cli::Commands::Build {
             seq_files,
+	    input_list,
             external_clusters,
 	    target_cluster,
             threads,
@@ -317,6 +347,12 @@ fn main() {
 
 	    let clusters: &mut Vec<String> = &mut Vec::new();
 
+	    // TODO seq_files should be mutable by default to avoid cloning
+	    let mut seq_files_in: Vec<String> = seq_files.clone();
+	    if input_list.is_some() {
+		seq_files_in.append(read_input_list(input_list.as_ref().unwrap()).as_mut());
+	    }
+
 	    if external_clusters.is_some() {
 		let f = std::fs::File::open(external_clusters.clone().unwrap()).unwrap();
 		let mut reader = csv::ReaderBuilder::new()
@@ -331,21 +367,21 @@ fn main() {
 		});
 
 		if target_cluster.is_some() {
-		    seq_files.iter().for_each(|seq| {
+		    seq_files_in.iter().for_each(|seq| {
 			let cluster = seq_to_cluster.get(seq).unwrap().clone();
 			clusters.push(if cluster == target_cluster.clone().unwrap() { seq_to_cluster.get(seq).unwrap().clone() } else { seq.clone() });
 		    });
 		} else {
-		    seq_files.iter().for_each(|seq| {
+		    seq_files_in.iter().for_each(|seq| {
 			clusters.push(seq_to_cluster.get(seq).unwrap().clone());
 		    });
 		}
 	    } else {
-		seq_files.iter().for_each(|seq| clusters.push(seq.clone()));
+		seq_files_in.iter().for_each(|seq| clusters.push(seq.clone()));
 	    }
 
             build::build_pangenome_representations(
-                &seq_files,
+                &seq_files_in,
 		clusters,
                 &Some(ggcat_params),
             );

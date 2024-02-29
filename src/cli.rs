@@ -24,6 +24,10 @@ pub enum Commands {
         #[arg(group = "input", required = true)]
         seq_files: Vec<String>,
 
+	// Input sequence list
+        #[arg(short = 'l', long = "input-list", group = "input", required = true)]
+        input_list: Option<String>,
+
 	// Outputs
         #[arg(short = 'o', long = "out-prefix", required = false, help_heading = "Output")]
         out_prefix: Option<String>,
@@ -185,6 +189,10 @@ pub enum Commands {
         #[arg(group = "input", required = true)]
         seq_files: Vec<String>,
 
+	// Input sequence list
+        #[arg(short = 'l', long = "input-list", group = "input", required = true)]
+        input_list: Option<String>,
+
         // Resources
         #[arg(short = 't', long = "threads", default_value_t = 1)]
         threads: u32,
@@ -253,6 +261,10 @@ pub enum Commands {
         // Input files
         #[arg(group = "input", required = true)]
         seq_files: Vec<String>,
+	
+	// Input sequence list
+        #[arg(short = 'l', long = "input-list", group = "input", required = true)]
+        input_list: Option<String>,
 
         #[arg(long = "external-clustering", required = true, help_heading = "Input")]
         external_clusters: Option<String>,
