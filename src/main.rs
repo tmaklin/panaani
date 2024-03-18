@@ -9,11 +9,10 @@
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::collections::HashSet;
-use std::io::Read;
 
 use clap::Parser;
 use itertools::Itertools;
-use log::{info, trace, Record, Level, LevelFilter, Metadata};
+use log::{info, Record, Level, LevelFilter, Metadata};
 
 mod build;
 mod cli;
@@ -34,58 +33,6 @@ impl log::Log for Logger {
     }
 
     fn flush(&self) {}
-}
-
-fn init_ggcat(opt: &Option<build::GGCATParams>) {
-    // GGCAT API force initializes rayon::ThreadPool using build_global
-    // so chaining skani -> kodama -> ggcat requires calling the GGCAT
-    // API before running skani to get parallelism working correctly.
-    let params = opt.clone().unwrap_or(build::GGCATParams::default());
-    let config = ggcat_api::GGCATConfig {
-        temp_dir: Some(std::path::PathBuf::from(params.temp_dir_path.clone())),
-        memory: params.memory as f64,
-        prefer_memory: false,
-        total_threads_count: params.threads as usize,
-        intermediate_compression_level: params.intermediate_compression_level,
-        stats_file: params.stats_file.clone(),
-    };
-
-    // GGCATInstance is static in the API and can be retrieved by calling
-    // GGCATInstance::create again, so no need to return the value.
-    let mut buf = gag::BufferRedirect::stdout().unwrap();
-    let _ = ggcat_api::GGCATInstance::create(config);
-    let mut output = String::new();
-    buf.read_to_string(&mut output).unwrap();
-    drop(buf);
-    for line in output.lines() {
-	trace!("{}", line);
-    }
-}
-
-fn init_ggcat2(opt: &Option<panaani::build::GGCATParams>) {
-    // GGCAT API force initializes rayon::ThreadPool using build_global
-    // so chaining skani -> kodama -> ggcat requires calling the GGCAT
-    // API before running skani to get parallelism working correctly.
-    let params = opt.clone().unwrap_or(panaani::build::GGCATParams::default());
-    let config = ggcat_api::GGCATConfig {
-        temp_dir: Some(std::path::PathBuf::from(params.temp_dir_path.clone())),
-        memory: params.memory as f64,
-        prefer_memory: false,
-        total_threads_count: params.threads as usize,
-        intermediate_compression_level: params.intermediate_compression_level,
-        stats_file: params.stats_file.clone(),
-    };
-
-    // GGCATInstance is static in the API and can be retrieved by calling
-    // GGCATInstance::create again, so no need to return the value.
-    let mut buf = gag::BufferRedirect::stdout().unwrap();
-    let _ = ggcat_api::GGCATInstance::create(config);
-    let mut output = String::new();
-    buf.read_to_string(&mut output).unwrap();
-    drop(buf);
-    for line in output.lines() {
-	trace!("{}", line);
-    }
 }
 
 fn init_log(log: &'static Logger, log_max_level: LevelFilter) {
@@ -231,7 +178,7 @@ fn main() {
 		seq_files_in.append(read_input_list(input_list.as_ref().unwrap()).as_mut());
 	    }
 
-	    init_ggcat2(&Some(ggcat_params.clone()));
+	    panaani::build::init_ggcat(&Some(ggcat_params.clone()));
 
             let clusters = panaani::dereplicate(
                 &seq_files_in,
@@ -311,7 +258,7 @@ fn main() {
         }) => {
 	    init_log(&LOG, if *verbose { LevelFilter::Info } else { LevelFilter::Warn });
 
-            let ggcat_params = build::GGCATParams {
+            let ggcat_params = panaani::build::GGCATParams {
                 kmer_size: *ggcat_kmer_size,
                 kmer_min_multiplicity: *kmer_min_multiplicity,
                 minimizer_length: if minimizer_length.is_some() {
@@ -343,7 +290,7 @@ fn main() {
                 ..Default::default()
             };
 
-	    init_ggcat(&Some(ggcat_params.clone()));
+	    panaani::build::init_ggcat(&Some(ggcat_params.clone()));
 
 	    let clusters: &mut Vec<String> = &mut Vec::new();
 
@@ -380,7 +327,7 @@ fn main() {
 		seq_files_in.iter().for_each(|seq| clusters.push(seq.clone()));
 	    }
 
-            build::build_pangenome_representations(
+            panaani::build::build_pangenome_representations(
                 &seq_files_in,
 		clusters,
                 &Some(ggcat_params),

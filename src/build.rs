@@ -13,7 +13,7 @@ use std::path::PathBuf;
 use log::debug;
 use log::trace;
 
-use ggcat_api::{GGCATConfig, GGCATInstance};
+use ggcat_api::{GGCATInstance};
 
 #[derive(Clone)]
 pub struct GGCATParams {
@@ -59,6 +59,33 @@ impl Default for GGCATParams {
             stats_file: None,
         }
     }
+}
+
+pub fn init_ggcat(opt: &Option<GGCATParams>) -> &ggcat_api::GGCATInstance {
+    // GGCAT API force initializes rayon::ThreadPool using build_global
+    // so chaining skani -> kodama -> ggcat requires calling the GGCAT
+    // API before running skani to get parallelism working correctly.
+    let params = opt.clone().unwrap_or(GGCATParams::default());
+    let config = ggcat_api::GGCATConfig {
+        temp_dir: Some(std::path::PathBuf::from(params.temp_dir_path.clone())),
+        memory: params.memory as f64,
+        prefer_memory: false,
+        total_threads_count: params.threads as usize,
+        intermediate_compression_level: params.intermediate_compression_level,
+        stats_file: params.stats_file.clone(),
+    };
+
+    // GGCATInstance is static in the API and can also be retrieved by calling
+    // GGCATInstance::create again..
+    let mut buf = gag::BufferRedirect::stdout().unwrap();
+    let instance = ggcat_api::GGCATInstance::create(config);
+    let mut output = String::new();
+    buf.read_to_string(&mut output).unwrap();
+    drop(buf);
+    for line in output.lines() {
+	trace!("{}", line);
+    }
+    return instance;
 }
 
 fn build_pangenome_graph(input_seq_names: &[String], prefix: &String, instance: &GGCATInstance, params: &GGCATParams) {
@@ -108,19 +135,12 @@ pub fn build_pangenome_representations(
         }
     });
 
-    let config = GGCATConfig {
-        temp_dir: Some(PathBuf::from(params.temp_dir_path.clone())),
-        memory: params.memory as f64,
-        prefer_memory: false,
-        total_threads_count: params.threads as usize,
-        intermediate_compression_level: params.intermediate_compression_level,
-        stats_file: params.stats_file.clone(),
-    };
+    let wrapped_params = Some(params.clone());
+    let instance = init_ggcat(&wrapped_params);
 
     let mut buf = gag::BufferRedirect::stdout().unwrap();
     let mut output = String::new();
     buf.read_to_string(&mut output).unwrap();
-    let instance = ggcat_api::GGCATInstance::create(config);
     drop(buf);
     for line in output.lines() {
 	debug!("{}", line);
