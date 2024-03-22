@@ -6,6 +6,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 //
+use std::cmp::Ordering;
 use std::collections::HashMap;
 
 use itertools::Itertools;
@@ -104,12 +105,26 @@ pub fn dereplicate(
     skani_params: &Option<dist::SkaniParams>,
     kodama_params: &Option<clust::KodamaParams>,
     ggcat_params: &Option<build::GGCATParams>,
-) -> Vec<String> {
+) -> Vec<(String, String)> {
     trace!("Dereplicate input contains {} sequences in {} clusters", seq_files.len(), initial_clusters.iter().unique().collect::<Vec<&String>>().len());
     let my_params = dereplicate_params.clone().unwrap_or(PanaaniParams::default());
 
+    // Create hashmap mapping each cluster name to the sequences assigned to it
+    let mut cluster_contents: HashMap<String, Vec<String>> = HashMap::new();
+    seq_files
+	.iter()
+	.zip(initial_clusters)
+	.for_each(|x|
+		  {
+		      if !cluster_contents.contains_key(x.1) {
+			  cluster_contents.insert(x.1.clone(), Vec::<String>::new());
+		      }
+		      cluster_contents.get_mut(x.1).unwrap().push(x.0.clone());
+		  }
+	);
+
+
     let mut iter: usize = 0;
-    let mut new_clusters: Vec<String> = Vec::from(initial_clusters);
 
     let mut batch_size = my_params.batch_step;
     let mut n_remaining: usize = seq_files.len();
@@ -117,14 +132,18 @@ pub fn dereplicate(
 	info!("Iteration {} processing {} sequences in batches of {}...", iter + 1, n_remaining, batch_size);
         let mut rng = rand::thread_rng();
 
-        // horrible hack to use random file names within each batch
-        new_clusters = seq_files
+	let input_files: Vec<Vec<String>> = cluster_contents.iter().map(|x| x.1.clone()).collect();
+	// let current_clusters: Vec<String> = cluster_contents.iter().map(|x| vec![x.0.clone(); x.1.len()]).flatten().collect();
+	let current_clusters: Vec<String> = cluster_contents.iter().map(|x| x.0.clone()).collect();
+
+	// horrible hack to use random file names within each batch
+        let new_clusters: Vec<String> = current_clusters
             .chunks(batch_size)
-            .zip(new_clusters.chunks(batch_size))
+            .zip(input_files.chunks(batch_size))
             .map(|x| {
                 dereplicate_iter(
-                    &x.0,
-                    &x.1,
+                    &x.1.iter().cloned().flatten().collect::<Vec<String>>(),
+                    &x.0.iter().zip(x.1).map(|y| vec![y.0.clone(); y.1.len()]).flatten().collect::<Vec<String>>(),
                     &(my_params.temp_dir.to_string() + "/" + &iter.to_string() + "_" + &(rng.gen::<u64>() as u64).to_string() + "-"),
                     skani_params,
                     kodama_params,
@@ -134,23 +153,53 @@ pub fn dereplicate(
             .flatten()
             .collect();
 
-        n_remaining = new_clusters.iter().unique().collect::<Vec<&String>>().len();
+	cluster_contents = HashMap::new();
+	input_files
+	    .iter()
+	    .zip(new_clusters)
+	    .for_each(|x|
+		      {
+			  if !cluster_contents.contains_key(&x.1) {
+			      cluster_contents.insert(x.1.clone(), Vec::<String>::new());
+			  }
+			  x.0.iter().for_each(|y| { cluster_contents.get_mut(&x.1).unwrap().push(y.clone()) } );
+		      }
+	    );
+
+	n_remaining = cluster_contents.len();
         iter += 1;
         match my_params.batch_step_strategy.as_str() {
             "linear" => batch_size += my_params.batch_step,
             "double" => batch_size *= 2,
             &_ => batch_size += my_params.batch_step,
         }
-    }
 
+	// If n_remaining/batch_size == 1 increase batch size so that
+	// the last chunk contains more than a single sequence.
+	while n_remaining % batch_size == 1 {
+	    batch_size += 1;
+	}
+    }
+    info!("Final iteration processing {} sequences...", n_remaining);
+
+    let final_input_files = cluster_contents.iter().map(|x| x.1.clone()).flatten().collect::<Vec<String>>();
+    let penultimate_clusters = cluster_contents.iter().map(|x| vec![x.0.clone(); x.1.len()]).flatten().collect::<Vec<String>>();
     let final_clusters = dereplicate_iter(
-        &seq_files,
-        &new_clusters,
+	&final_input_files,
+        &penultimate_clusters,
         &"panANI-".to_string(),
         skani_params,
         kodama_params,
         ggcat_params,
     );
 
-    return final_clusters;
+    return final_input_files
+	.iter()
+	.cloned()
+	.zip(final_clusters)
+        .sorted_by(|k1, k2| match k1.1.cmp(&k2.1) {
+            Ordering::Equal => k1.0.cmp(&k2.0),
+            other => other,
+        })
+	.collect();
 }

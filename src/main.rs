@@ -188,12 +188,11 @@ fn main() {
                 &Some(kodama_params),
                 &Some(ggcat_params),
             );
-            let n_clusters = clusters.iter().unique().collect::<Vec<&String>>().len();
+            let n_clusters = clusters.iter().map(|x| x.1.clone()).unique().collect::<Vec<String>>().len();
 
             info!("Created {} clusters", n_clusters);
-            seq_files
+            clusters
                 .iter()
-                .zip(clusters.iter())
                 .for_each(|x| println!("{}\t{}", x.0, x.1));
         }
 
