@@ -69,7 +69,7 @@ pub fn init_ggcat(opt: &Option<GGCATParams>) -> &ggcat_api::GGCATInstance {
     let config = ggcat_api::GGCATConfig {
         temp_dir: Some(std::path::PathBuf::from(params.temp_dir_path.clone())),
         memory: params.memory as f64,
-        prefer_memory: false,
+        prefer_memory: true,
         total_threads_count: params.threads as usize,
         intermediate_compression_level: params.intermediate_compression_level,
         stats_file: params.stats_file.clone(),
