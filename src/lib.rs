@@ -98,6 +98,36 @@ pub fn dereplicate_iter(
     return new_clusters.iter().map(|x| if ggcat_params.is_some() { ggcat_params.clone().unwrap().out_prefix + x } else { x.clone() }).collect();
 }
 
+fn guide_batching(seq_files: &[String], kodama_params: &Option<clust::KodamaParams>) -> Vec<String> {
+    let guide_params = dist::SkaniParams {
+        kmer_subsampling_rate: 2500,
+        marker_compression_factor: 2500,
+        clip_tails: true,
+        ..Default::default()
+    };
+
+    let fastx_files: Vec<String> = seq_files.iter().cloned().unique().collect();
+    let ani_result = dist::ani_from_fastx_files(
+        &fastx_files,
+        &Some(guide_params),
+    );
+    let hclust_res = clust::single_linkage_cluster(
+        &ani_result,
+        kodama_params,
+    );
+
+    let res = fastx_files
+	.iter()
+	.zip(hclust_res)
+        .sorted_by(|k1, k2| match k1.1.cmp(&k2.1) {
+            Ordering::Equal => k1.0.cmp(&k2.0),
+            other => other,
+        })
+	.map(|x| x.0.clone())
+	.collect();
+    return res;
+}
+
 pub fn dereplicate(
     seq_files: &[String],
     initial_clusters: &[String],
@@ -132,12 +162,15 @@ pub fn dereplicate(
 	info!("Iteration {} processing {} sequences in batches of {}...", iter + 1, n_remaining, batch_size);
         let mut rng = rand::thread_rng();
 
-	let input_files: Vec<Vec<String>> = cluster_contents.iter().map(|x| x.1.clone()).collect();
-	// let current_clusters: Vec<String> = cluster_contents.iter().map(|x| vec![x.0.clone(); x.1.len()]).flatten().collect();
 	let current_clusters: Vec<String> = cluster_contents.iter().map(|x| x.0.clone()).collect();
+	let batch_assignments: Vec<String> = guide_batching(&current_clusters, kodama_params);
+	let input_files: Vec<Vec<String>> = batch_assignments.iter().map(|x| cluster_contents.get(x).unwrap().clone()).collect();
+
+	// let input_files: Vec<Vec<String>> = cluster_contents.iter().map(|x| x.1.clone()).collect();
+	// let current_clusters: Vec<String> = cluster_contents.iter().map(|x| x.0.clone()).collect();
 
 	// horrible hack to use random file names within each batch
-        let new_clusters: Vec<String> = current_clusters
+        let new_clusters: Vec<String> = batch_assignments
             .chunks(batch_size)
             .zip(input_files.chunks(batch_size))
             .map(|x| {
