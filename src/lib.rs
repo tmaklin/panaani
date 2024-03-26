@@ -108,7 +108,7 @@ fn guide_batching(seq_files: &[String], kodama_params: &Option<clust::KodamaPara
         ..Default::default()
     };
 
-    let fastx_files: Vec<String> = seq_files.iter().cloned().unique().collect();
+    let fastx_files: Vec<String> = seq_files.iter().cloned().collect();
     let ani_result = dist::ani_from_fastx_files(
         &fastx_files,
         &Some(guide_params),
@@ -168,7 +168,7 @@ pub fn dereplicate(
 	    let current_clusters: Vec<String> = cluster_contents.iter().map(|x| x.0.clone()).collect();
 	    guide_batching(&current_clusters, kodama_params)
 	} else {
-	    cluster_contents.iter().unique().map(|x| x.0.clone()).collect()
+	    cluster_contents.iter().map(|x| x.0.clone()).collect()
 	};
 
 	let input_files: Vec<Vec<String>> = batch_assignments.iter().map(|x| cluster_contents.get(x).unwrap().clone()).collect();
