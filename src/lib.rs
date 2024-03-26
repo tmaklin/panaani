@@ -24,6 +24,7 @@ pub struct PanaaniParams {
     pub batch_step_strategy: String,
     pub max_iters: usize,
     pub temp_dir: String,
+    pub guided: bool,
 }
 
 impl Default for PanaaniParams {
@@ -33,6 +34,7 @@ impl Default for PanaaniParams {
 	    batch_step_strategy: "linear".to_string(),
 	    max_iters: 10,
 	    temp_dir: "./".to_string(),
+	    guided: false,
         }
     }
 }
@@ -162,12 +164,14 @@ pub fn dereplicate(
 	info!("Iteration {} processing {} sequences in batches of {}...", iter + 1, n_remaining, batch_size);
         let mut rng = rand::thread_rng();
 
-	let current_clusters: Vec<String> = cluster_contents.iter().map(|x| x.0.clone()).collect();
-	let batch_assignments: Vec<String> = guide_batching(&current_clusters, kodama_params);
-	let input_files: Vec<Vec<String>> = batch_assignments.iter().map(|x| cluster_contents.get(x).unwrap().clone()).collect();
+	let batch_assignments: Vec<String> = if dereplicate_params.as_ref().unwrap().guided {
+	    let current_clusters: Vec<String> = cluster_contents.iter().map(|x| x.0.clone()).collect();
+	    guide_batching(&current_clusters, kodama_params)
+	} else {
+	    cluster_contents.iter().unique().map(|x| x.0.clone()).collect()
+	};
 
-	// let input_files: Vec<Vec<String>> = cluster_contents.iter().map(|x| x.1.clone()).collect();
-	// let current_clusters: Vec<String> = cluster_contents.iter().map(|x| x.0.clone()).collect();
+	let input_files: Vec<Vec<String>> = batch_assignments.iter().map(|x| cluster_contents.get(x).unwrap().clone()).collect();
 
 	// horrible hack to use random file names within each batch
         let new_clusters: Vec<String> = batch_assignments

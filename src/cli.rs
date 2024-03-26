@@ -65,6 +65,13 @@ pub enum Commands {
         )]
         max_iters: usize,
 
+	#[arg(
+            long = "guided",
+            default_value_t = false,
+            help_heading = "Dereplication"
+        )]
+        guided_batching: bool,
+
         #[arg(long = "verbose", default_value_t = false)]
         verbose: bool,
 

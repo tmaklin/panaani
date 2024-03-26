@@ -97,6 +97,7 @@ fn main() {
 	    max_iters,
 	    batch_step_strategy,
 	    out_prefix,
+	    guided_batching,
         }) => {
 	    init_log(&LOG, if *verbose { LevelFilter::Info } else { LevelFilter::Warn });
 
@@ -105,6 +106,7 @@ fn main() {
                 batch_step_strategy: batch_step_strategy.clone(),
                 max_iters: *max_iters,
 		temp_dir: temp_dir_path.clone().unwrap_or("/tmp".to_string()),
+		guided: *guided_batching,
             };
 
             let skani_params = panaani::dist::SkaniParams {
