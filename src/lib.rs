@@ -134,6 +134,23 @@ fn guide_batching(seq_files: &[String], kodama_params: &Option<clust::KodamaPara
     return res;
 }
 
+fn assign_seqs(seqs: &[String], clusters: &[String]) -> HashMap::<String, Vec<String>> {
+    // Create hashmap mapping each cluster name to the sequences assigned to it
+    let mut cluster_contents: HashMap<String, Vec<String>> = HashMap::new();
+    seqs
+	.iter()
+	.zip(clusters)
+	.for_each(|x|
+		  {
+		      if !cluster_contents.contains_key(x.1) {
+			  cluster_contents.insert(x.1.clone(), Vec::new());
+		      }
+		      cluster_contents.get_mut(x.1).unwrap().push(x.0.clone());
+		  }
+	);
+    return cluster_contents;
+}
+
 pub fn dereplicate(
     seq_files: &[String],
     dereplicate_params: &Option<PanaaniParams>,
@@ -145,18 +162,7 @@ pub fn dereplicate(
     let my_params = dereplicate_params.clone().unwrap_or(PanaaniParams::default());
 
     // Create hashmap mapping each cluster name to the sequences assigned to it
-    let mut cluster_contents: HashMap<String, Vec<String>> = HashMap::new();
-    seq_files
-	.iter()
-	.zip(my_params.external_clustering.unwrap_or(seq_files.to_vec()))
-	.for_each(|x|
-		  {
-		      if !cluster_contents.contains_key(&x.1) {
-			  cluster_contents.insert(x.1.clone(), Vec::new());
-		      }
-		      cluster_contents.get_mut(&x.1).unwrap().push(x.0.clone());
-		  }
-	);
+    let mut cluster_contents = assign_seqs(seq_files, &my_params.external_clustering.unwrap_or(seq_files.to_vec()));
 
     let mut iter: usize = 0;
     let mut batch_size = my_params.batch_step;
@@ -190,20 +196,9 @@ pub fn dereplicate(
             .flatten()
             .collect();
 
-	let mut cluster_contents_new = HashMap::new();
-	batch_assignments
-	    .iter()
-	    .zip(new_clusters)
-	    .for_each(|x|
-		      {
-			  if !cluster_contents_new.contains_key(&x.1) {
-			      cluster_contents_new.insert(x.1.clone(), Vec::<String>::new());
-			  }
-			  cluster_contents.get(x.0).unwrap().iter().for_each(|y| { cluster_contents_new.get_mut(&x.1).unwrap().push(y.clone()) } );
-		      }
-	    );
+	cluster_contents = assign_seqs(&batch_assignments.iter().map(|x| cluster_contents.get(x).unwrap().clone()).flatten().collect::<Vec<String>>(),
+				       &new_clusters);
 
-	cluster_contents = cluster_contents_new;
 	n_remaining = cluster_contents.len();
         iter += 1;
         match my_params.batch_step_strategy.as_str() {
