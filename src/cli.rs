@@ -288,7 +288,7 @@ pub enum Commands {
         input_list: Option<String>,
 
         #[arg(long = "external-clustering", required = true, help_heading = "Input")]
-        external_clusters: Option<String>,
+        external_clustering_file: Option<String>,
 
 	#[arg(long = "target", required = false, help_heading = "Input")]
         target_cluster: Option<String>,
