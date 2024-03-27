@@ -25,6 +25,7 @@ pub struct PanaaniParams {
     pub max_iters: usize,
     pub temp_dir: String,
     pub guided: bool,
+    pub external_clustering: Option<Vec<String>>,
 }
 
 impl Default for PanaaniParams {
@@ -35,6 +36,7 @@ impl Default for PanaaniParams {
 	    max_iters: 10,
 	    temp_dir: "./".to_string(),
 	    guided: false,
+	    external_clustering: None,
         }
     }
 }
@@ -146,11 +148,13 @@ pub fn dereplicate(
     let mut cluster_contents: HashMap<String, Vec<String>> = HashMap::new();
     seq_files
 	.iter()
+	.zip(my_params.external_clustering.unwrap_or(seq_files.to_vec()))
 	.for_each(|x|
 		  {
-		      if !cluster_contents.contains_key(x) {
-			  cluster_contents.insert(x.clone(), vec![x.clone()]);
+		      if !cluster_contents.contains_key(&x.1) {
+			  cluster_contents.insert(x.1.clone(), Vec::new());
 		      }
+		      cluster_contents.get_mut(&x.1).unwrap().push(x.0.clone());
 		  }
 	);
 

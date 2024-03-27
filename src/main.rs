@@ -63,6 +63,25 @@ fn read_input_list(input_list_file: &String) -> Vec<String> {
     seq_files
 }
 
+fn read_external_clustering(seq_files_in: &[String], external_clustering_file: &String) -> Vec<String> {
+    let f = std::fs::File::open(external_clustering_file).unwrap();
+    let mut reader = csv::ReaderBuilder::new()
+        .delimiter(b'\t')
+        .has_headers(false)
+        .from_reader(f);
+
+    // Read the cluster assignments into a HashMap to get the order correct
+    let mut seq_assignments: HashMap<String, String> = HashMap::new();
+    reader.records().into_iter().for_each(|line| {
+        let record = line.unwrap();
+	seq_assignments.insert(record[0].to_string(), record[1].to_string());
+    });
+    return seq_files_in
+	.iter()
+	.map(|x| seq_assignments.get(x).unwrap_or_else(|| { panic!("Input sequence {} was not found in `--external-clustering`!", x) }).clone())
+	.collect::<Vec<String>>();
+}
+
 fn main() {
     static LOG: Logger = Logger;
     let cli = cli::Cli::parse();
@@ -98,16 +117,9 @@ fn main() {
 	    batch_step_strategy,
 	    out_prefix,
 	    guided_batching,
+	    external_clustering_file,
         }) => {
 	    init_log(&LOG, if *verbose { LevelFilter::Info } else { LevelFilter::Warn });
-
-            let params: panaani::PanaaniParams = panaani::PanaaniParams {
-                batch_step: *batch_step,
-                batch_step_strategy: batch_step_strategy.clone(),
-                max_iters: *max_iters,
-		temp_dir: temp_dir_path.clone().unwrap_or("/tmp".to_string()),
-		guided: *guided_batching,
-            };
 
             let skani_params = panaani::dist::SkaniParams {
                 kmer_size: *skani_kmer_size,
@@ -179,6 +191,20 @@ fn main() {
 	    if input_list.is_some() {
 		seq_files_in.append(read_input_list(input_list.as_ref().unwrap()).as_mut());
 	    }
+
+            let params: panaani::PanaaniParams = panaani::PanaaniParams {
+                batch_step: *batch_step,
+                batch_step_strategy: batch_step_strategy.clone(),
+                max_iters: *max_iters,
+		temp_dir: temp_dir_path.clone().unwrap_or("/tmp".to_string()),
+		guided: *guided_batching,
+		external_clustering: if external_clustering_file.is_some() {
+		    Some(read_external_clustering(&seq_files_in, &external_clustering_file.as_ref().unwrap()))
+		} else {
+		    None
+		},
+		..Default::default()
+            };
 
 	    panaani::build::init_ggcat(&Some(ggcat_params.clone()));
 

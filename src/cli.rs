@@ -58,6 +58,13 @@ pub enum Commands {
         )]
         batch_step_strategy: String,
 
+	#[arg(
+            long = "external-clustering",
+	    required = false,
+            help_heading = "Dereplication"
+        )]
+        external_clustering_file: Option<String>,
+
         #[arg(
             long = "max-iters",
             default_value_t = 10,
