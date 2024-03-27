@@ -67,13 +67,15 @@ pub fn match_clustering_results(
 }
 
 pub fn dereplicate_iter(
-    seq_files: &[String],
-    old_clusters: &[String],
+    prev_assignments: &HashMap<String, Vec<String>>,
     out_prefix: &String,
     skani_params: &Option<dist::SkaniParams>,
     kodama_params: &Option<clust::KodamaParams>,
     ggcat_params: &Option<build::GGCATParams>,
 ) -> Vec<String> {
+    let seq_files = prev_assignments.iter().map(|x| x.1.clone()).flatten().collect::<Vec<String>>();
+    let old_clusters = prev_assignments.iter().map(|x| vec![x.0.clone(); x.1.len()]).flatten().collect::<Vec<String>>();
+
     info!("Calculating ANIs...");
     let fastx_files = old_clusters.iter().cloned().unique().collect();
     let ani_result = dist::ani_from_fastx_files(
@@ -88,7 +90,7 @@ pub fn dereplicate_iter(
     );
 
     let mut new_clusters: Vec<String> =
-        match_clustering_results(&fastx_files, old_clusters, &hclust_res, out_prefix);
+        match_clustering_results(&fastx_files, &old_clusters, &hclust_res, out_prefix);
 
     info!("Building pangenome graphs...");
     build::build_pangenome_representations(
@@ -171,9 +173,10 @@ pub fn dereplicate(
         let new_clusters: Vec<String> = batch_assignments
             .chunks(batch_size)
             .map(|x| {
+		let mut batch_inputs: HashMap<String, Vec<String>> = HashMap::new();
+		x.iter().for_each(|y| { batch_inputs.insert(y.clone(), cluster_contents.get(y).unwrap().clone()); });
                 dereplicate_iter(
-		    &x.iter().map(|y| cluster_contents.get(y).unwrap().clone()).flatten().collect::<Vec<String>>(),
-		    &x.iter().map(|y| vec![y.clone(); cluster_contents.get(y).unwrap().len()]).flatten().collect::<Vec<String>>(),
+		    &batch_inputs,
                     &(my_params.temp_dir.to_string() + "/" + &iter.to_string() + "_" + &(rng.gen::<u64>() as u64).to_string() + "-"),
                     skani_params,
                     kodama_params,
@@ -213,17 +216,15 @@ pub fn dereplicate(
     }
     info!("Final iteration processing {} sequences...", n_remaining);
 
-    let final_input_files = cluster_contents.iter().map(|x| x.1.clone()).flatten().collect::<Vec<String>>();
-    let penultimate_clusters = cluster_contents.iter().map(|x| vec![x.0.clone(); x.1.len()]).flatten().collect::<Vec<String>>();
     let final_clusters = dereplicate_iter(
-	&final_input_files,
-        &penultimate_clusters,
+	&cluster_contents,
         &"panANI-".to_string(),
         skani_params,
         kodama_params,
         ggcat_params,
     );
 
+    let final_input_files = cluster_contents.iter().map(|x| x.1.clone()).flatten().collect::<Vec<String>>();
     return final_input_files
 	.iter()
 	.cloned()
