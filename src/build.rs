@@ -127,14 +127,7 @@ pub fn build_pangenome_representations(
 
     let wrapped_params = Some(params.clone());
 
-    let mut buf = gag::BufferRedirect::stdout().unwrap();
     let instance = init_ggcat(&wrapped_params);
-    let mut output = String::new();
-    buf.read_to_string(&mut output).unwrap();
-    drop(buf);
-    for line in output.lines() {
-	debug!("{}", line);
-    }
 
     files_in_cluster
         .iter()
