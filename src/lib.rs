@@ -70,13 +70,30 @@ pub fn match_clustering_results(
     return new_clusters;
 }
 
+fn assign_seqs(seqs: &[String], clusters: &[String]) -> HashMap::<String, Vec<String>> {
+    // Create hashmap mapping each cluster name to the sequences assigned to it
+    let mut cluster_contents: HashMap<String, Vec<String>> = HashMap::new();
+    seqs
+	.iter()
+	.zip(clusters)
+	.for_each(|x|
+		  {
+		      if !cluster_contents.contains_key(x.1) {
+			  cluster_contents.insert(x.1.clone(), Vec::new());
+		      }
+		      cluster_contents.get_mut(x.1).unwrap().push(x.0.clone());
+		  }
+	);
+    return cluster_contents;
+}
+
 pub fn dereplicate_iter(
     prev_assignments: &HashMap<String, Vec<String>>,
     out_prefix: &String,
     skani_params: &Option<dist::SkaniParams>,
     kodama_params: &Option<clust::KodamaParams>,
     ggcat_params: &Option<build::GGCATParams>,
-) -> Vec<String> {
+) -> HashMap<String, Vec<String>> {
     let seq_files = prev_assignments.iter().map(|x| x.1.clone()).flatten().collect::<Vec<String>>();
     let old_clusters = prev_assignments.iter().map(|x| vec![x.0.clone(); x.1.len()]).flatten().collect::<Vec<String>>();
 
@@ -93,8 +110,7 @@ pub fn dereplicate_iter(
         kodama_params,
     );
 
-    let mut new_clusters: Vec<String> =
-        match_clustering_results(&fastx_files, &old_clusters, &hclust_res, out_prefix);
+    let mut new_clusters: Vec<String> = match_clustering_results(&fastx_files, &old_clusters, &hclust_res, out_prefix);
 
     info!("Building pangenome graphs...");
     build::build_pangenome_representations(
@@ -103,7 +119,8 @@ pub fn dereplicate_iter(
         ggcat_params,
     );
 
-    return new_clusters.iter().map(|x| if ggcat_params.is_some() { ggcat_params.clone().unwrap().out_prefix + x } else { x.clone() }).collect();
+    let new_assignments = assign_seqs(&seq_files, &new_clusters);
+    return new_assignments;
 }
 
 fn guide_batching(seq_files: &[String], kodama_params: &Option<clust::KodamaParams>) -> Vec<String> {
@@ -134,23 +151,6 @@ fn guide_batching(seq_files: &[String], kodama_params: &Option<clust::KodamaPara
 	.map(|x| x.0.clone())
 	.collect();
     return res;
-}
-
-fn assign_seqs(seqs: &[String], clusters: &[String]) -> HashMap::<String, Vec<String>> {
-    // Create hashmap mapping each cluster name to the sequences assigned to it
-    let mut cluster_contents: HashMap<String, Vec<String>> = HashMap::new();
-    seqs
-	.iter()
-	.zip(clusters)
-	.for_each(|x|
-		  {
-		      if !cluster_contents.contains_key(x.1) {
-			  cluster_contents.insert(x.1.clone(), Vec::new());
-		      }
-		      cluster_contents.get_mut(x.1).unwrap().push(x.0.clone());
-		  }
-	);
-    return cluster_contents;
 }
 
 pub fn dereplicate(
@@ -184,7 +184,7 @@ pub fn dereplicate(
 	};
 
 	// horrible hack to use random file names within each batch
-        let new_clusters: Vec<String> = batch_assignments
+        let new_clusters: Vec<HashMap<String, Vec<String>>> = batch_assignments
             .chunks(batch_size)
             .map(|x| {
 		let mut batch_inputs: HashMap<String, Vec<String>> = HashMap::new();
@@ -197,11 +197,10 @@ pub fn dereplicate(
                     ggcat_params,
                 )
             })
-            .flatten()
             .collect();
 
-	cluster_contents = assign_seqs(&batch_assignments.iter().map(|x| cluster_contents.get(x).unwrap().clone()).flatten().collect::<Vec<String>>(),
-				       &new_clusters);
+	cluster_contents = assign_seqs(&new_clusters.iter().map(|x| x.iter().map(|y| y.1.clone()).flatten()).flatten().collect::<Vec<String>>(),
+				       &new_clusters.iter().map(|x| x.iter().map(|y| vec![y.0.clone(); y.1.len()]).flatten()).flatten().collect::<Vec<String>>());
 
 	n_remaining = cluster_contents.len();
         iter += 1;
@@ -227,11 +226,10 @@ pub fn dereplicate(
         ggcat_params,
     );
 
-    let final_input_files = cluster_contents.iter().map(|x| x.1.clone()).flatten().collect::<Vec<String>>();
-    return final_input_files
+    return final_clusters
 	.iter()
-	.cloned()
-	.zip(final_clusters)
+	.map(|x| x.1.iter().cloned().zip(vec![x.0.clone(); x.1.len()]).collect::<Vec<(String, String)>>())
+	.flatten()
         .sorted_by(|k1, k2| match k1.1.cmp(&k2.1) {
             Ordering::Equal => k1.0.cmp(&k2.0),
             other => other,
