@@ -26,6 +26,7 @@ pub struct PanaaniParams {
     pub temp_dir: String,
     pub guided: bool,
     pub external_clustering: Option<Vec<String>>,
+    pub initial_batches: Option<Vec<String>>,
 }
 
 impl Default for PanaaniParams {
@@ -37,6 +38,7 @@ impl Default for PanaaniParams {
 	    temp_dir: "./".to_string(),
 	    guided: false,
 	    external_clustering: None,
+	    initial_batches: None,
         }
     }
 }
@@ -172,7 +174,9 @@ pub fn dereplicate(
 	info!("Iteration {} processing {} sequences in batches of {}...", iter + 1, n_remaining, batch_size);
         let mut rng = rand::thread_rng();
 
-	let batch_assignments: Vec<String> = if my_params.guided {
+	let batch_assignments: Vec<String> = if iter == 0 && my_params.initial_batches.is_some() {
+	    my_params.initial_batches.as_ref().unwrap().clone()
+	} else if my_params.guided {
 	    let current_clusters: Vec<String> = cluster_contents.iter().map(|x| x.0.clone()).collect();
 	    guide_batching(&current_clusters, kodama_params)
 	} else {

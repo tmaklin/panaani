@@ -63,8 +63,8 @@ fn read_input_list(input_list_file: &String) -> Vec<String> {
     seq_files
 }
 
-fn read_external_clustering(seq_files_in: &[String], external_clustering_file: &String) -> Vec<String> {
-    let f = std::fs::File::open(external_clustering_file).unwrap();
+fn read_seq_assignments(seq_files_in: &[String], seq_assignments_file: &String) -> Vec<(String, String)> {
+    let f = std::fs::File::open(seq_assignments_file).unwrap();
     let mut reader = csv::ReaderBuilder::new()
         .delimiter(b'\t')
         .has_headers(false)
@@ -78,8 +78,12 @@ fn read_external_clustering(seq_files_in: &[String], external_clustering_file: &
     });
     return seq_files_in
 	.iter()
-	.map(|x| seq_assignments.get(x).unwrap_or_else(|| { panic!("Input sequence {} was not found in `--external-clustering`!", x) }).clone())
-	.collect::<Vec<String>>();
+	.map(|x| (x.clone(), seq_assignments.get(x).unwrap_or_else(|| { panic!("Input sequence {} was not found in {}!", x, seq_assignments_file) }).clone()))
+	.sorted_by(|k1, k2| match k1.1.cmp(&k2.1) {
+	    Ordering::Equal => k1.0.cmp(&k2.0),
+            other => other,
+	})
+	.collect::<Vec<(String, String)>>();
 }
 
 fn main() {
@@ -118,6 +122,7 @@ fn main() {
 	    out_prefix,
 	    guided_batching,
 	    external_clustering_file,
+	    initial_batches_file,
         }) => {
 	    init_log(&LOG, if *verbose { LevelFilter::Info } else { LevelFilter::Warn });
 
@@ -199,7 +204,12 @@ fn main() {
 		temp_dir: temp_dir_path.clone().unwrap_or("/tmp".to_string()),
 		guided: *guided_batching,
 		external_clustering: if external_clustering_file.is_some() {
-		    Some(read_external_clustering(&seq_files_in, &external_clustering_file.as_ref().unwrap()))
+		    Some(read_seq_assignments(&seq_files_in, &external_clustering_file.as_ref().unwrap()).iter().map(|x| x.1.clone()).collect())
+		} else {
+		    None
+		},
+		initial_batches: if initial_batches_file.is_some() {
+		    Some(read_seq_assignments(&seq_files_in, &initial_batches_file.as_ref().unwrap()).iter().map(|x| x.0.clone()).collect())
 		} else {
 		    None
 		},
@@ -207,6 +217,10 @@ fn main() {
             };
 
 	    panaani::build::init_ggcat(&Some(ggcat_params.clone()));
+
+	    if external_clustering_file.is_some() {
+		panic!("TODO: implement building the external clusters before running dereplicate.");
+	    }
 
             let clusters = panaani::dereplicate(
                 &seq_files_in,

@@ -59,6 +59,13 @@ pub enum Commands {
         batch_step_strategy: String,
 
 	#[arg(
+            long = "initial-batches",
+	    required = false,
+            help_heading = "Dereplication"
+        )]
+        initial_batches_file: Option<String>,
+
+	#[arg(
             long = "external-clustering",
 	    required = false,
             help_heading = "Dereplication"
