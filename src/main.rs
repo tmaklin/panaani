@@ -182,9 +182,8 @@ fn main() {
 
 	    panaani::build::init_ggcat(&Some(ggcat_params.clone()));
 
-	    let inputs: Vec<(String, String)> = seq_files_in.iter().cloned().zip(seq_files_in.clone()).collect();
             let clusters = panaani::dereplicate(
-                &inputs,
+                &seq_files_in,
                 &Some(params),
                 &Some(skani_params),
                 &Some(kodama_params),

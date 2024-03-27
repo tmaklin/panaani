@@ -131,54 +131,49 @@ fn guide_batching(seq_files: &[String], kodama_params: &Option<clust::KodamaPara
 }
 
 pub fn dereplicate(
-    seq_files_in: &[(String, String)],
+    seq_files: &[String],
     dereplicate_params: &Option<PanaaniParams>,
     skani_params: &Option<dist::SkaniParams>,
     kodama_params: &Option<clust::KodamaParams>,
     ggcat_params: &Option<build::GGCATParams>,
 ) -> Vec<(String, String)> {
-    trace!("Dereplicate input contains {} sequences in {} clusters", seq_files_in.len(), seq_files_in.iter().map(|x| x.1.clone()).unique().collect::<Vec<String>>().len());
+    trace!("Dereplicate input contains {} sequences in {} clusters", seq_files.len(), seq_files.iter().unique().collect::<Vec<&String>>().len());
     let my_params = dereplicate_params.clone().unwrap_or(PanaaniParams::default());
 
     // Create hashmap mapping each cluster name to the sequences assigned to it
     let mut cluster_contents: HashMap<String, Vec<String>> = HashMap::new();
-    seq_files_in
+    seq_files
 	.iter()
 	.for_each(|x|
 		  {
-		      if !cluster_contents.contains_key(&x.1) {
-			  cluster_contents.insert(x.1.clone(), Vec::<String>::new());
+		      if !cluster_contents.contains_key(x) {
+			  cluster_contents.insert(x.clone(), vec![x.clone()]);
 		      }
-		      cluster_contents.get_mut(&x.1).unwrap().push(x.0.clone());
 		  }
 	);
 
-
     let mut iter: usize = 0;
-
     let mut batch_size = my_params.batch_step;
     let mut n_remaining: usize = cluster_contents.len();
+
     while batch_size < n_remaining && iter < my_params.max_iters {
 	info!("Iteration {} processing {} sequences in batches of {}...", iter + 1, n_remaining, batch_size);
         let mut rng = rand::thread_rng();
 
-	let batch_assignments: Vec<String> = if dereplicate_params.as_ref().unwrap().guided {
+	let batch_assignments: Vec<String> = if my_params.guided {
 	    let current_clusters: Vec<String> = cluster_contents.iter().map(|x| x.0.clone()).collect();
 	    guide_batching(&current_clusters, kodama_params)
 	} else {
 	    cluster_contents.iter().map(|x| x.0.clone()).collect()
 	};
 
-	let input_files: Vec<Vec<String>> = batch_assignments.iter().map(|x| cluster_contents.get(x).unwrap().clone()).collect();
-
 	// horrible hack to use random file names within each batch
         let new_clusters: Vec<String> = batch_assignments
             .chunks(batch_size)
-            .zip(input_files.chunks(batch_size))
             .map(|x| {
                 dereplicate_iter(
-                    &x.1.iter().cloned().flatten().collect::<Vec<String>>(),
-                    &x.0.iter().zip(x.1).map(|y| vec![y.0.clone(); y.1.len()]).flatten().collect::<Vec<String>>(),
+		    &x.iter().map(|y| cluster_contents.get(y).unwrap().clone()).flatten().collect::<Vec<String>>(),
+		    &x.iter().map(|y| vec![y.clone(); cluster_contents.get(y).unwrap().len()]).flatten().collect::<Vec<String>>(),
                     &(my_params.temp_dir.to_string() + "/" + &iter.to_string() + "_" + &(rng.gen::<u64>() as u64).to_string() + "-"),
                     skani_params,
                     kodama_params,
@@ -188,19 +183,20 @@ pub fn dereplicate(
             .flatten()
             .collect();
 
-	cluster_contents = HashMap::new();
-	input_files
+	let mut cluster_contents_new = HashMap::new();
+	batch_assignments
 	    .iter()
 	    .zip(new_clusters)
 	    .for_each(|x|
 		      {
-			  if !cluster_contents.contains_key(&x.1) {
-			      cluster_contents.insert(x.1.clone(), Vec::<String>::new());
+			  if !cluster_contents_new.contains_key(&x.1) {
+			      cluster_contents_new.insert(x.1.clone(), Vec::<String>::new());
 			  }
-			  x.0.iter().for_each(|y| { cluster_contents.get_mut(&x.1).unwrap().push(y.clone()) } );
+			  cluster_contents.get(x.0).unwrap().iter().for_each(|y| { cluster_contents_new.get_mut(&x.1).unwrap().push(y.clone()) } );
 		      }
 	    );
 
+	cluster_contents = cluster_contents_new;
 	n_remaining = cluster_contents.len();
         iter += 1;
         match my_params.batch_step_strategy.as_str() {
