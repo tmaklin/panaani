@@ -173,8 +173,26 @@ pub fn dereplicate(
     trace!("Dereplicate input contains {} sequences in {} clusters", seq_files.len(), seq_files.iter().unique().collect::<Vec<&String>>().len());
     let my_params = dereplicate_params.clone().unwrap_or(PanaaniParams::default());
 
-    // Create hashmap mapping each cluster name to the sequences assigned to it
-    let mut cluster_contents = assign_seqs(seq_files, &my_params.external_clustering.unwrap_or(seq_files.to_vec()));
+    let mut cluster_contents: HashMap<String, Vec<String>> = if my_params.external_clustering.is_some() {
+	let mut external_clusters = my_params.external_clustering.as_ref().unwrap().clone();
+	let initial_contents = assign_seqs(seq_files, &external_clusters);
+	info!("Building {} external cluster representations...", initial_contents.len());
+	build::build_pangenome_representations(
+	    &initial_contents,
+            &ggcat_params,
+	);
+	external_clusters
+	    .iter_mut()
+	    .zip(seq_files)
+	    .for_each(|x| { if initial_contents.get(x.0).unwrap().len() == 1 {
+		*x.0 = x.1.clone();
+	    }
+	    });
+	assign_seqs(seq_files, &external_clusters)
+    } else {
+	// Create hashmap mapping each cluster name to the sequences assigned to it
+	assign_seqs(seq_files, seq_files)
+    };
 
     let mut iter: usize = 0;
     let mut batch_size = my_params.batch_step;

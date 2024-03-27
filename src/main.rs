@@ -218,10 +218,6 @@ fn main() {
 
 	    panaani::build::init_ggcat(&Some(ggcat_params.clone()));
 
-	    if external_clustering_file.is_some() {
-		panic!("TODO: implement building the external clusters before running dereplicate.");
-	    }
-
             let clusters = panaani::dereplicate(
                 &seq_files_in,
                 &Some(params),
