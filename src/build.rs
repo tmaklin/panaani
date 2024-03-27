@@ -126,19 +126,18 @@ pub fn build_pangenome_representations(
     let params = opt.clone().unwrap_or(GGCATParams::default());
 
     let wrapped_params = Some(params.clone());
-    let instance = init_ggcat(&wrapped_params);
 
     let mut buf = gag::BufferRedirect::stdout().unwrap();
-
-    files_in_cluster
-        .iter()
-	.filter(|x| x.1.len() > 1)
-        .for_each(|x| build_pangenome_graph(x.1, x.0, &instance, &params));
-
+    let instance = init_ggcat(&wrapped_params);
     let mut output = String::new();
     buf.read_to_string(&mut output).unwrap();
     drop(buf);
     for line in output.lines() {
 	debug!("{}", line);
     }
+
+    files_in_cluster
+        .iter()
+	.filter(|x| x.1.len() > 1)
+        .for_each(|x| build_pangenome_graph(x.1, x.0, &instance, &params));
 }
