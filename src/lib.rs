@@ -70,7 +70,7 @@ pub fn match_clustering_results(
     return new_clusters;
 }
 
-fn assign_seqs(seqs: &[String], clusters: &[String]) -> HashMap::<String, Vec<String>> {
+pub fn assign_seqs(seqs: &[String], clusters: &[String]) -> HashMap::<String, Vec<String>> {
     // Create hashmap mapping each cluster name to the sequences assigned to it
     let mut cluster_contents: HashMap<String, Vec<String>> = HashMap::new();
     seqs
@@ -111,15 +111,25 @@ pub fn dereplicate_iter(
     );
 
     let mut new_clusters: Vec<String> = match_clustering_results(&fastx_files, &old_clusters, &hclust_res, out_prefix);
+    let mut new_assignments = assign_seqs(&seq_files, &new_clusters);
+    // Singleton clusters should have the same name as in the previous round
+    // dumb hack
+    seq_files
+	.iter()
+	.zip(new_clusters.iter_mut())
+	.for_each(|x| {
+	    if new_assignments.get(x.1).unwrap().len() == 1 {
+		*x.1 = x.0.clone();
+	    }
+	});
+    new_assignments = assign_seqs(&seq_files, &new_clusters);
 
     info!("Building pangenome graphs...");
     build::build_pangenome_representations(
-        &seq_files,
-        &mut new_clusters,
+	&new_assignments,
         ggcat_params,
     );
 
-    let new_assignments = assign_seqs(&seq_files, &new_clusters);
     return new_assignments;
 }
 

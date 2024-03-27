@@ -282,7 +282,7 @@ fn main() {
         Some(cli::Commands::Build {
             seq_files,
 	    input_list,
-            external_clusters,
+            external_clustering_file,
 	    target_cluster,
             threads,
             memory,
@@ -332,44 +332,24 @@ fn main() {
 
 	    panaani::build::init_ggcat(&Some(ggcat_params.clone()));
 
-	    let clusters: &mut Vec<String> = &mut Vec::new();
-
 	    // TODO seq_files should be mutable by default to avoid cloning
 	    let mut seq_files_in: Vec<String> = seq_files.clone();
 	    if input_list.is_some() {
 		seq_files_in.append(read_input_list(input_list.as_ref().unwrap()).as_mut());
 	    }
 
-	    if external_clusters.is_some() {
-		let f = std::fs::File::open(external_clusters.clone().unwrap()).unwrap();
-		let mut reader = csv::ReaderBuilder::new()
-                    .delimiter(b'\t')
-                    .has_headers(false)
-                    .from_reader(f);
+	    let external_clusters: Vec<(String, String)> = read_seq_assignments(&seq_files_in, &external_clustering_file.as_ref().unwrap());
+	    let mut seq_to_cluster = panaani::assign_seqs(&external_clusters.iter().map(|x| x.0.clone()).collect::<Vec<String>>(),
+							  &external_clusters.iter().map(|x| x.1.clone()).collect::<Vec<String>>());
 
-		let mut seq_to_cluster: HashMap<String, String> = HashMap::new();
-		reader.records().into_iter().for_each(|line| {
-                    let record = line.unwrap();
-		    seq_to_cluster.insert(record[0].to_string().clone(), record[1].to_string().clone());
-		});
-
-		if target_cluster.is_some() {
-		    seq_files_in.iter().for_each(|seq| {
-			let cluster = seq_to_cluster.get(seq).unwrap().clone();
-			clusters.push(if cluster == target_cluster.clone().unwrap() { seq_to_cluster.get(seq).unwrap().clone() } else { seq.clone() });
-		    });
-		} else {
-		    seq_files_in.iter().for_each(|seq| {
-			clusters.push(seq_to_cluster.get(seq).unwrap().clone());
-		    });
-		}
-	    } else {
-		seq_files_in.iter().for_each(|seq| clusters.push(seq.clone()));
+	    if target_cluster.is_some() {
+		let mut target_to_seqs: HashMap<String, Vec<String>> = HashMap::new();
+		target_to_seqs.insert(target_cluster.as_ref().unwrap().clone(), seq_to_cluster.get(target_cluster.as_ref().unwrap()).unwrap().clone());
+		seq_to_cluster = target_to_seqs;
 	    }
 
             panaani::build::build_pangenome_representations(
-                &seq_files_in,
-		clusters,
+		&seq_to_cluster,
                 &Some(ggcat_params),
             );
         }

@@ -120,40 +120,25 @@ fn build_pangenome_graph(input_seq_names: &[String], prefix: &String, instance: 
 }
 
 pub fn build_pangenome_representations(
-    seq_files: &[String],
-    clusters: &mut [String],
+    files_in_cluster: &HashMap<String, Vec<String>>,
     opt: &Option<GGCATParams>,
 ) {
     let params = opt.clone().unwrap_or(GGCATParams::default());
-    let mut files_in_cluster: HashMap<String, Vec<String>> = HashMap::new();
-
-    seq_files.iter().zip(clusters.iter()).for_each(|x| {
-        if files_in_cluster.contains_key(x.1) {
-            files_in_cluster.get_mut(x.1).unwrap().push(x.0.clone());
-        } else {
-            files_in_cluster.insert(x.1.clone(), vec![x.0.clone()]);
-        }
-    });
 
     let wrapped_params = Some(params.clone());
     let instance = init_ggcat(&wrapped_params);
 
     let mut buf = gag::BufferRedirect::stdout().unwrap();
-    let mut output = String::new();
-    buf.read_to_string(&mut output).unwrap();
-    drop(buf);
-    for line in output.lines() {
-	debug!("{}", line);
-    }
 
     files_in_cluster
         .iter()
 	.filter(|x| x.1.len() > 1)
         .for_each(|x| build_pangenome_graph(x.1, x.0, &instance, &params));
 
-    seq_files.iter().zip(clusters.iter_mut()).for_each(|x| {
-        if files_in_cluster.get(x.1).unwrap().len() == 1 {
-            *x.1 = x.0.clone();
-        }
-    });
+    let mut output = String::new();
+    buf.read_to_string(&mut output).unwrap();
+    drop(buf);
+    for line in output.lines() {
+	debug!("{}", line);
+    }
 }
