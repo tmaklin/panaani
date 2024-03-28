@@ -12,7 +12,7 @@ use std::collections::HashSet;
 
 use clap::Parser;
 use itertools::Itertools;
-use log::{info, Record, Level, LevelFilter, Metadata};
+use log::{info, Record, Level, Metadata};
 
 mod build;
 mod cli;
@@ -35,12 +35,18 @@ impl log::Log for Logger {
     fn flush(&self) {}
 }
 
-fn init_log(log: &'static Logger, log_max_level: LevelFilter) {
-    let _ = log::set_logger(log).map(|()| log::set_max_level(log_max_level ));
+fn init_log(log_max_level: usize) {
+    stderrlog::new()
+	.module(module_path!())
+	.quiet(false)
+	.verbosity(log_max_level)
+	.timestamp(stderrlog::Timestamp::Off)
+	.init()
+	.unwrap();
 }
 
-fn init(threads: usize, log: &'static Logger, log_max_level: LevelFilter) {
-    init_log(log, log_max_level);
+fn init(threads: usize, log_max_level: usize) {
+    init_log(log_max_level);
     rayon::ThreadPoolBuilder::new()
         .num_threads(threads)
         .thread_name(|i| format!("rayon-thread-{}", i))
@@ -87,7 +93,6 @@ fn read_seq_assignments(seq_files_in: &[String], seq_assignments_file: &String) 
 }
 
 fn main() {
-    static LOG: Logger = Logger;
     let cli = cli::Cli::parse();
 
     // Subcommands:
@@ -124,7 +129,7 @@ fn main() {
 	    external_clustering_file,
 	    initial_batches_file,
         }) => {
-	    init_log(&LOG, if *verbose { LevelFilter::Info } else { LevelFilter::Warn });
+	    init_log(if *verbose { 2 } else { 1 });
 
             let skani_params = panaani::dist::SkaniParams {
                 kmer_size: *skani_kmer_size,
@@ -248,7 +253,7 @@ fn main() {
             min_aligned_frac,
 	    verbose
         }) => {
-	    init(*threads as usize, &LOG, if *verbose { LevelFilter::Info } else { LevelFilter::Warn });
+	    init(*threads as usize, if *verbose { 2 } else { 1 });
 
             let skani_params = dist::SkaniParams {
                 kmer_size: *skani_kmer_size,
@@ -292,7 +297,7 @@ fn main() {
 	    verbose,
 	    out_prefix,
         }) => {
-	    init_log(&LOG, if *verbose { LevelFilter::Info } else { LevelFilter::Warn });
+	    init_log(if *verbose { 2 } else { 1 });
 
             let ggcat_params = panaani::build::GGCATParams {
                 kmer_size: *ggcat_kmer_size,
@@ -358,7 +363,7 @@ fn main() {
 	    verbose,
 	    out_prefix,
         }) => {
-	    init(1 as usize, &LOG, if *verbose { LevelFilter::Info } else { LevelFilter::Warn });
+	    init(1, if *verbose { 2 } else { 1 });
 
             let kodama_params = clust::KodamaParams {
                 cutoff: *ani_threshold,
