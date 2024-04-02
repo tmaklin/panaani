@@ -49,13 +49,21 @@ impl Default for SkaniParams {
     }
 }
 
-fn filter_ani(ani: f32, ref_align_frac: f32, query_align_frac: f32,
+pub fn filter_ani(ani: f32, ref_align_frac: f32, query_align_frac: f32,
 	      ref_min_align_frac: f32, query_min_align_frac: f32) -> f32 {
     if ani > 0.0 && ani < 1.0 && !ani.is_nan() && (ref_align_frac > ref_min_align_frac || query_align_frac > query_min_align_frac) {
         ani
     } else {
         0.0
     }
+}
+
+pub fn sketch_fastx_files(
+    fastx_files: &Vec<String>,
+    opt: Option<skani::params::SketchParams>,
+) -> Vec<skani::types::Sketch> {
+    let sketch_params = opt.unwrap_or(skani::params::SketchParams::default());
+    return skani::file_io::fastx_to_sketches(&fastx_files.iter().map(|x| x.clone()).collect(), &sketch_params, true);
 }
 
 pub fn ani_from_fastx_files(
@@ -95,8 +103,8 @@ pub fn ani_from_fastx_files(
         distance: true,
     };
 
-    let sketches = skani::file_io::fastx_to_sketches(&fastx_files.iter().map(|x| x.clone()).collect(), &sketch_params, true);
-    let adjust_ani = skani::regression::get_model(sketch_params.c, false);
+    let sketches = sketch_fastx_files(fastx_files, Some(sketch_params));
+    let adjust_ani = skani::regression::get_model(skani_params.kmer_subsampling_rate.into(), false);
 
     let (sender, receiver) = channel();
     sketches
