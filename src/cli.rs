@@ -379,4 +379,80 @@ pub enum Commands {
         )]
         linkage_method: Option<String>,
     },
+    Assign {
+        // Input files
+        #[arg(group = "input", required = true)]
+        query_files: Vec<String>,
+
+	// Input sequence list
+        #[arg(short = 'l', long = "input-list", group = "input", required = true, help_heading = "Input")]
+        query_files_list: Option<String>,
+
+        #[arg(short = 'r', long = "ref-list", required = true, help_heading = "Input")]
+        ref_files_list: Option<String>,
+
+        // Resources
+        #[arg(short = 't', long = "threads", default_value_t = 1)]
+        threads: u32,
+
+        #[arg(long = "verbose", default_value_t = false)]
+        verbose: bool,
+
+        // ANI estimation parameters
+        #[arg(
+            long = "skani-kmer-size",
+            default_value_t = 15,
+            help_heading = "ANI estimation"
+        )]
+        skani_kmer_size: u8,
+
+        #[arg(
+            long = "kmer-subsampling-rate",
+            default_value_t = 30,
+            help_heading = "ANI estimation"
+        )]
+        kmer_subsampling_rate: u16,
+
+        #[arg(
+            long = "marker-compression-factor",
+            default_value_t = 1000,
+            help_heading = "ANI estimation"
+        )]
+        marker_compression_factor: u16,
+
+        #[arg(
+            long = "min-af",
+            default_value_t = 0.15,
+            help_heading = "ANI estimation"
+        )]
+        min_aligned_frac: f64,
+
+        #[arg(
+            long = "rescue-small",
+            default_value_t = false,
+            help_heading = "ANI estimation"
+        )]
+        rescue_small: bool,
+
+        #[arg(
+            long = "clip-tails",
+            default_value_t = false,
+            help_heading = "ANI estimation"
+        )]
+        clip_tails: bool,
+
+        #[arg(
+            long = "median",
+            default_value_t = false,
+            help_heading = "ANI estimation"
+        )]
+        median: bool,
+
+        #[arg(
+            long = "adjust-ani",
+            default_value_t = false,
+            help_heading = "ANI estimation"
+        )]
+        adjust_ani: bool,
+    }
 }
