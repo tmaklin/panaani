@@ -13,6 +13,8 @@ use std::collections::HashSet;
 use clap::Parser;
 use itertools::Itertools;
 use log::{info, Record, Level, Metadata};
+use rayon::iter::IntoParallelRefIterator;
+use rayon::iter::ParallelIterator;
 
 mod build;
 mod cli;
@@ -430,6 +432,162 @@ fn main() {
 
 	    old_clusters.iter().zip(new_clusters.iter()).for_each(|x| { println!("{}\t{}", x.0, x.1) } );
         }
+
+        // Calculate distances between some input fasta files
+        Some(cli::Commands::Assign {
+            query_files,
+	    query_files_list,
+	    ref_files_list,
+            threads,
+	    verbose,
+            skani_kmer_size,
+            kmer_subsampling_rate,
+            marker_compression_factor,
+            rescue_small,
+            clip_tails,
+            median,
+            adjust_ani,
+            min_aligned_frac,
+	    ani_threshold,
+        }) => {
+	    init(*threads as usize, if *verbose { 2 } else { 1 });
+
+            let skani_params = dist::SkaniParams {
+                kmer_size: *skani_kmer_size,
+                kmer_subsampling_rate: *kmer_subsampling_rate,
+                marker_compression_factor: *marker_compression_factor,
+                rescue_small: *rescue_small,
+
+                clip_tails: *clip_tails,
+                median: *median,
+                adjust_ani: *adjust_ani,
+
+                min_aligned_frac: *min_aligned_frac,
+                ..Default::default()
+            };
+
+	    let cmd_params = skani::params::CommandParams {
+		screen: false,
+		screen_val: 0.00,
+		mode: skani::params::Mode::Dist,
+		out_file_name: "".to_string(),
+		ref_files: vec![],
+		query_files: vec![],
+		refs_are_sketch: false,
+		queries_are_sketch: false,
+		robust: skani_params.clip_tails,
+		median: skani_params.median,
+		sparse: false,
+		full_matrix: false,
+		max_results: 10000000,
+		individual_contig_q: false,
+		individual_contig_r: false,
+		min_aligned_frac: 0.0,
+		keep_refs: false,
+		est_ci: skani_params.bootstrap_ci,
+		learned_ani: skani_params.adjust_ani,
+		detailed_out: false,
+		rescue_small: skani_params.rescue_small,
+		distance: true,
+	    };
+	    let adjust_ani = skani::regression::get_model(skani_params.kmer_subsampling_rate.into(), false);
+
+	    let mut query_files_in: Vec<String> = query_files.clone();
+	    if query_files_list.is_some() {
+		query_files_in.append(read_input_list(query_files_list.as_ref().unwrap()).as_mut());
+	    }
+
+	    let mut ref_files_in: Vec<String> = Vec::new();
+	    ref_files_in.append(read_input_list(ref_files_list.as_ref().unwrap()).as_mut());
+
+	    let ref_db = dist::sketch_fastx_files(&ref_files_in, Some(skani::params::SketchParams::new(
+		skani_params.marker_compression_factor as usize,
+		skani_params.kmer_subsampling_rate as usize,
+		skani_params.kmer_size as usize,
+		false,
+		false,
+	    )));
+
+	    let query_db = dist::sketch_fastx_files(&query_files_in, Some(skani::params::SketchParams::new(
+		skani_params.marker_compression_factor as usize,
+		skani_params.kmer_subsampling_rate as usize,
+		skani_params.kmer_size as usize,
+		false,
+		false,
+	    )));
+
+	    let query_dists = ref_db
+		.iter()
+		.map(|r| { query_db
+			   .par_iter()
+			   .map(|q| {
+			       (q.file_name.clone(),
+				r.file_name.clone(),
+				skani::chain::chain_seeds(
+				    r,
+				    q,
+				    skani::chain::map_params_from_sketch(
+					r,
+					false,
+					&cmd_params,
+					&adjust_ani,
+				    ),
+				)
+			       )
+			   })
+			   .collect::<Vec<(String, String, skani::types::AniEstResult)>>()
+		})
+		.flatten()
+		.map(|x| {
+		    (x.0,
+		     x.1,
+		     dist::filter_ani(x.2.ani, x.2.align_fraction_ref, x.2.align_fraction_query, skani_params.min_aligned_frac as f32, skani_params.min_aligned_frac as f32)
+		    )
+		})
+		.collect::<Vec<(String, String, f32)>>();
+
+	    // Check that all queries were assigned
+	    let mut all_assigned = true;
+	    let mut best_match: HashMap<String, (String, f32, bool)> = HashMap::new();
+	    query_dists
+		.iter()
+		.for_each(|x| {
+		    if !best_match.contains_key(&x.0) {
+			best_match.insert(x.0.clone(), (x.1.clone(), x.2.clone(), false));
+		    } else if x.2 > best_match.get(&x.0).unwrap().1 {
+			let assigned_twice: bool = (best_match.get(&x.0).unwrap().1 > *ani_threshold && x.2 > *ani_threshold) || best_match.get(&x.0).unwrap().2;
+			*best_match.get_mut(&x.0).unwrap() = (x.1.clone(), x.2.clone(), assigned_twice);
+		    }
+		});
+
+	    let mut all_unambiguous = true;
+	    best_match
+		.iter()
+		.for_each(|x| { all_assigned &= x.1.1 > *ani_threshold; all_unambiguous &= !x.1.2 });
+
+	    if all_assigned && all_unambiguous {
+		info!("Assigned {}/{} queries unambiguously to reference database (ANI threshold {})", query_db.len(), query_db.len(), ani_threshold);
+		best_match
+		    .iter()
+		    .for_each(|x| { println!("{}\t{}", x.0, x.1.0); });
+	    } else if all_unambiguous {
+		let n_assigned: usize = best_match.iter().filter(|x| x.1.1 > *ani_threshold).count();
+		info!("Assigned {}/{} queries unambiguously to reference database (ANI threshold {})", n_assigned, query_db.len(), ani_threshold);
+		info!("{}/{} queries could not be assigned to any reference", query_db.len() - n_assigned,  query_db.len());
+		best_match
+		    .iter()
+		    .for_each(|x| { if x.1.1 > *ani_threshold { println!("{}\t{}", x.0, x.1.0); } else { println!("{}\t{}", x.0, "new_cluster"); } });
+	    } else {
+		let n_assigned: usize = best_match.iter().filter(|x| x.1.1 > *ani_threshold).count();
+		let n_ambiguous: usize = best_match.iter().filter(|x| x.1.2).count();
+		info!("Assigned {}/{} queries unambiguously to reference database (ANI threshold {})", n_assigned - n_ambiguous, query_db.len(), ani_threshold);
+		info!("{}/{} queries could not be assigned to any reference", query_db.len() - n_assigned,  query_db.len());
+		info!("{}/{} queries were assigned to multiple references", n_ambiguous, query_db.len());
+		best_match
+		    .iter()
+		    .for_each(|x| { if x.1.1 > *ani_threshold && !x.1.2 { println!("{}\t{}", x.0, x.1.0); } else if x.1.1 > *ani_threshold && x.1.2 { println!("{}\t{}", x.0, "ambiguous"); } else { println!("{}\t{}", x.0, "new_cluster"); } });
+	    }
+	}
         None => {}
     }
 }
