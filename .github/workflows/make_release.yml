@@ -31,8 +31,8 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v3
         with:
-          name: panaani-${{ github.ref_name }}-x86_64-unknown-linux
-          path: /io/panaani-${{ github.ref_name }}-x86_64-unknown-linux.tar.gz
+          name: panaani-${{ github.ref_name }}-x86_64-unknown-linux-gnu
+          path: /io/panaani-${{ github.ref_name }}-x86_64-unknown-linux-gnu.tar.gz
 
 #  build_macOS-x86_64:
 #    runs-on: ubuntu-latest
@@ -113,7 +113,7 @@ jobs:
       - name: Organise files
         shell: bash
         run: |
-          cp build/panaani-${{ github.ref_name }}-x86_64-unknown-linux/panaani-${{ github.ref_name }}-x86_64-unknown-linux.tar.gz .
+          cp build/panaani-${{ github.ref_name }}-x86_64-unknown-linux-gnu/panaani-${{ github.ref_name }}-x86_64-unknown-linux-gnu.tar.gz .
       - name: Create release
         id: create_release
         uses: softprops/action-gh-release@v1
