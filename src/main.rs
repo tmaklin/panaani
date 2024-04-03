@@ -448,6 +448,7 @@ fn main() {
             median,
             adjust_ani,
             min_aligned_frac,
+	    ani_threshold,
         }) => {
 	    init(*threads as usize, if *verbose { 2 } else { 1 });
 
@@ -515,7 +516,7 @@ fn main() {
 		false,
 	    )));
 
-	    ref_db
+	    let query_dists = ref_db
 		.iter()
 		.map(|r| { query_db
 			   .par_iter()
@@ -532,18 +533,60 @@ fn main() {
 					&adjust_ani,
 				    ),
 				)
-				)
+			       )
 			   })
 			   .collect::<Vec<(String, String, skani::types::AniEstResult)>>()
 		})
 		.flatten()
-		.for_each(|x| {
-		    println!("{}\t{}\t{}",
-			x.0,
-			x.1,
-			dist::filter_ani(x.2.ani, x.2.align_fraction_ref, x.2.align_fraction_query, skani_params.min_aligned_frac as f32, skani_params.min_aligned_frac as f32),
-		    );
+		.map(|x| {
+		    (x.0,
+		     x.1,
+		     dist::filter_ani(x.2.ani, x.2.align_fraction_ref, x.2.align_fraction_query, skani_params.min_aligned_frac as f32, skani_params.min_aligned_frac as f32)
+		    )
 		})
+		.collect::<Vec<(String, String, f32)>>();
+
+	    // Check that all queries were assigned
+	    let mut all_assigned = true;
+	    let mut best_match: HashMap<String, (String, f32, bool)> = HashMap::new();
+	    query_dists
+		.iter()
+		.for_each(|x| {
+		    if !best_match.contains_key(&x.0) {
+			best_match.insert(x.0.clone(), (x.1.clone(), x.2.clone(), false));
+		    } else if x.2 > best_match.get(&x.0).unwrap().1 {
+			let assigned_twice: bool = (best_match.get(&x.0).unwrap().1 > *ani_threshold && x.2 > *ani_threshold) || best_match.get(&x.0).unwrap().2;
+			*best_match.get_mut(&x.0).unwrap() = (x.1.clone(), x.2.clone(), assigned_twice);
+		    }
+		});
+
+	    let mut all_unambiguous = true;
+	    best_match
+		.iter()
+		.for_each(|x| { all_assigned &= x.1.1 > *ani_threshold; all_unambiguous &= !x.1.2 });
+
+	    if all_assigned && all_unambiguous {
+		info!("Assigned {}/{} queries unambiguously to reference database (ANI threshold {})", query_db.len(), query_db.len(), ani_threshold);
+		best_match
+		    .iter()
+		    .for_each(|x| { println!("{}\t{}", x.0, x.1.0); });
+	    } else if all_unambiguous {
+		let n_assigned: usize = best_match.iter().filter(|x| x.1.1 > *ani_threshold).count();
+		info!("Assigned {}/{} queries unambiguously to reference database (ANI threshold {})", n_assigned, query_db.len(), ani_threshold);
+		info!("{}/{} queries could not be assigned to any reference", query_db.len() - n_assigned,  query_db.len());
+		best_match
+		    .iter()
+		    .for_each(|x| { if x.1.1 > *ani_threshold { println!("{}\t{}", x.0, x.1.0); } else { println!("{}\t{}", x.0, "new_cluster"); } });
+	    } else {
+		let n_assigned: usize = best_match.iter().filter(|x| x.1.1 > *ani_threshold).count();
+		let n_ambiguous: usize = best_match.iter().filter(|x| x.1.2).count();
+		info!("Assigned {}/{} queries unambiguously to reference database (ANI threshold {})", n_assigned - n_ambiguous, query_db.len(), ani_threshold);
+		info!("{}/{} queries could not be assigned to any reference", query_db.len() - n_assigned,  query_db.len());
+		info!("{}/{} queries were assigned to multiple references", n_ambiguous, query_db.len());
+		best_match
+		    .iter()
+		    .for_each(|x| { if x.1.1 > *ani_threshold && !x.1.2 { println!("{}\t{}", x.0, x.1.0); } else if x.1.1 > *ani_threshold && x.1.2 { println!("{}\t{}", x.0, "ambiguous"); } else { println!("{}\t{}", x.0, "new_cluster"); } });
+	    }
 	}
         None => {}
     }
