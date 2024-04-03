@@ -454,5 +454,14 @@ pub enum Commands {
             help_heading = "ANI estimation"
         )]
         adjust_ani: bool,
+
+	// Clustering parameters
+	#[arg(
+            long = "ani-threshold",
+            default_value_t = 0.97,
+            help_heading = "ANI clustering"
+	)]
+	ani_threshold: f32,
+
     }
 }
