@@ -1,6 +1,6 @@
 [package]
 name = "panaani"
-version = "0.0.0"
+version = "0.1.0"
 authors = ["Tommi Mäklin <tommi@maklin.fi>"]
 edition = "2021"
 rust-version = "1.75"
