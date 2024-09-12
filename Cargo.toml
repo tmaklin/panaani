@@ -28,6 +28,9 @@ skani = { git = "https://github.com/bluenote-1577/skani", version="0.2.1" }
 # dBG construction
 ggcat-api = { git = "https://github.com/algbio/ggcat", rev = "ec68afe" }
 
+# progress bar
+indicatif = { version = "0.17.8", features = ["rayon"]}
+
 # single linkage clustering
 kodama = "0.3.0"
 
