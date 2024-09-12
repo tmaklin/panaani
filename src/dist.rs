@@ -9,6 +9,8 @@
 use std::cmp::Ordering;
 use std::sync::mpsc::channel;
 
+use indicatif::ProgressBar;
+use indicatif::ProgressStyle;
 use itertools::Itertools;
 use rayon::iter::ParallelBridge;
 use rayon::iter::ParallelIterator;
@@ -29,6 +31,9 @@ pub struct SkaniParams {
     // Results reporting
     pub min_aligned_frac: f64,
     pub bootstrap_ci: bool,
+
+    // Print progress
+    pub progress: bool,
 }
 
 impl Default for SkaniParams {
@@ -45,6 +50,8 @@ impl Default for SkaniParams {
 
             min_aligned_frac: 0.15,
             bootstrap_ci: false,
+
+	    progress: false,
         }
     }
 }
@@ -106,6 +113,11 @@ pub fn ani_from_fastx_files(
     let sketches = sketch_fastx_files(fastx_files, Some(sketch_params));
     let adjust_ani = skani::regression::get_model(skani_params.kmer_subsampling_rate.into(), false);
 
+    let pairs: u64 = (sketches.len() as u64 - 1) * (sketches.len() as u64);
+    let progress = if skani_params.progress { ProgressBar::new(pairs/2) } else { ProgressBar::hidden() };
+    progress.set_style(ProgressStyle::with_template("[{elapsed_precise}] {bar:40.cyan/blue} {pos:>7}/{len:7} {msg}").unwrap());
+    progress.set_message("pairs done");
+
     let (sender, receiver) = channel();
     sketches
         .iter()
@@ -125,7 +137,10 @@ pub fn ani_from_fastx_files(
 			 &adjust_ani,
                      ),
 		 )));
+	    progress.inc(1);
         });
+
+    progress.finish();
 
     let ani_result: Vec<(String, String, f32)> = receiver
         .iter()

@@ -10,6 +10,8 @@ use std::collections::HashMap;
 use std::io::Read;
 use std::path::PathBuf;
 
+use indicatif::ProgressBar;
+use indicatif::ProgressStyle;
 use log::debug;
 use log::trace;
 
@@ -37,6 +39,9 @@ pub struct GGCATParams {
     // Intermediate outputs
     pub intermediate_compression_level: Option<u32>,
     pub stats_file: Option<PathBuf>,
+
+    // Report progress
+    pub progress: bool,
 }
 
 impl Default for GGCATParams {
@@ -57,6 +62,8 @@ impl Default for GGCATParams {
 
             intermediate_compression_level: None,
             stats_file: None,
+
+	    progress: false,
         }
     }
 }
@@ -129,8 +136,16 @@ pub fn build_pangenome_representations(
 
     let instance = init_ggcat(&wrapped_params);
 
+    let progress = if params.progress { ProgressBar::new(files_in_cluster.len() as u64) } else { ProgressBar::hidden() };
+    progress.set_style(ProgressStyle::with_template("[{elapsed_precise}] {bar:40.cyan/blue} {pos:>7}/{len:7} {msg}").unwrap());
+    progress.set_message("graphs built");
+
     files_in_cluster
         .iter()
 	.filter(|x| x.1.len() > 1)
-        .for_each(|x| build_pangenome_graph(x.1, x.0, &instance, &params));
+        .for_each(|x| {
+	    build_pangenome_graph(x.1, x.0, &instance, &params);
+	    progress.inc(1)
+	});
+    progress.finish_and_clear();
 }
