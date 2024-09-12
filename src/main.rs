@@ -144,6 +144,7 @@ fn main() {
                 adjust_ani: *adjust_ani,
 
                 min_aligned_frac: *min_aligned_frac,
+		progress: *verbose,
                 ..Default::default()
             };
 
@@ -175,6 +176,7 @@ fn main() {
                     None
                 },
                 no_reverse_complement: *no_reverse_complement,
+		progress: *verbose,
                 unitig_type: if unitig_type.is_some() {
                     match unitig_type.as_ref().unwrap().as_str() {
                         "greedymatchtigs" => ggcat_api::ExtraElaboration::GreedyMatchtigs,
@@ -268,6 +270,7 @@ fn main() {
                 adjust_ani: *adjust_ani,
 
                 min_aligned_frac: *min_aligned_frac,
+		progress: *verbose,
                 ..Default::default()
             };
 
@@ -310,6 +313,7 @@ fn main() {
                     None
                 },
                 no_reverse_complement: *no_reverse_complement,
+		progress: *verbose,
                 unitig_type: if unitig_type.is_some() {
                     match unitig_type.as_ref().unwrap().as_str() {
                         "greedymatchtigs" => ggcat_api::ExtraElaboration::GreedyMatchtigs,
@@ -463,6 +467,7 @@ fn main() {
                 adjust_ani: *adjust_ani,
 
                 min_aligned_frac: *min_aligned_frac,
+		progress: *verbose,
                 ..Default::default()
             };
 
