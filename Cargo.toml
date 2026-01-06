@@ -6,8 +6,8 @@ edition = "2021"
 rust-version = "1.75"
 description = "Pangenome-aware dereplication of bacterial genomes into ANI clusters"
 readme = "README.md"
-homepage = "https://github.com/tmaklin/panaani"
-repository = "https://github.com/tmaklin/panaani"
+## homepage = "https://github.com/tmaklin/panaani"
+repository = "https://codeberg.org/themaklin/panaani"
 license = "MPL-2.0"
 
 [dependencies]
